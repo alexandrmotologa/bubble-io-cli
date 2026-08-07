@@ -10,15 +10,44 @@ vi.mock('fs', () => ({
 }));
 
 vi.mock('configstore', () => {
-  const store = new Map<string, unknown>();
+  // Simulate Configstore's nested object store (dot-notation keys map to nested objects)
+  const store: Record<string, unknown> = {};
+
+  function setNested(obj: Record<string, unknown>, keys: string[], value: unknown): void {
+    const key = keys[0];
+    if (keys.length === 1) {
+      obj[key] = value;
+    } else {
+      if (typeof obj[key] !== 'object' || obj[key] === null) obj[key] = {};
+      setNested(obj[key] as Record<string, unknown>, keys.slice(1), value);
+    }
+  }
+
+  function getNested(obj: Record<string, unknown>, keys: string[]): unknown {
+    const key = keys[0];
+    if (keys.length === 1) return obj[key];
+    if (typeof obj[key] !== 'object' || obj[key] === null) return undefined;
+    return getNested(obj[key] as Record<string, unknown>, keys.slice(1));
+  }
+
+  function deleteNested(obj: Record<string, unknown>, keys: string[]): void {
+    const key = keys[0];
+    if (keys.length === 1) { delete obj[key]; return; }
+    if (typeof obj[key] === 'object' && obj[key] !== null) {
+      deleteNested(obj[key] as Record<string, unknown>, keys.slice(1));
+    }
+  }
+
   return {
     default: vi.fn().mockImplementation(() => ({
-      set: (key: string, value: unknown) => store.set(key, value),
-      get: (key: string) => store.get(key),
-      clear: () => store.clear(),
+      set: (key: string, value: unknown) => setNested(store, key.split('.'), value),
+      get: (key: string) => getNested(store, key.split('.')),
+      clear: () => { Object.keys(store).forEach((k) => delete store[k]); },
+      delete: (key: string) => deleteNested(store, key.split('.')),
     })),
   };
 });
+
 
 // Import after mocks are set up
 const { storage } = await import('../src/utils/storage');
@@ -26,7 +55,7 @@ const { storage } = await import('../src/utils/storage');
 describe('StorageManager', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    storage.clearConfig();
+    storage.clearConfig('*');
   });
 
   describe('saveConfig() + getConfig()', () => {
@@ -57,11 +86,48 @@ describe('StorageManager', () => {
   });
 
   describe('clearConfig()', () => {
-    it('should remove all stored values', () => {
+    it('should remove stored values for the active profile', () => {
       storage.saveConfig({ appName: 'my-app', apiKey: 'key-abc' });
       storage.clearConfig();
       expect(storage.getConfig()).toBeNull();
       expect(storage.isConfigured()).toBe(false);
+    });
+  });
+
+  describe('Multi-app profiles', () => {
+    it('should save and retrieve config for a named profile', () => {
+      storage.saveConfig({ appName: 'staging-app', apiKey: 'staging-key' }, 'staging');
+      const cfg = storage.getConfig('staging');
+      expect(cfg?.appName).toBe('staging-app');
+      expect(cfg?.apiKey).toBe('staging-key');
+    });
+
+    it('should keep profiles independent', () => {
+      storage.saveConfig({ appName: 'prod-app', apiKey: 'prod-key' }, 'prod');
+      storage.saveConfig({ appName: 'dev-app', apiKey: 'dev-key' }, 'dev');
+      expect(storage.getConfig('prod')?.appName).toBe('prod-app');
+      expect(storage.getConfig('dev')?.appName).toBe('dev-app');
+    });
+
+    it('should set the active profile when saving', () => {
+      storage.saveConfig({ appName: 'my-app', apiKey: 'key' }, 'staging');
+      expect(storage.getActiveProfile()).toBe('staging');
+    });
+
+    it('should allow switching the active profile', () => {
+      storage.saveConfig({ appName: 'app-a', apiKey: 'key-a' }, 'alpha');
+      storage.saveConfig({ appName: 'app-b', apiKey: 'key-b' }, 'beta');
+      storage.setActiveProfile('alpha');
+      expect(storage.getActiveProfile()).toBe('alpha');
+      expect(storage.getConfig()?.appName).toBe('app-a');
+    });
+
+    it('should list all saved profile names', () => {
+      storage.saveConfig({ appName: 'x', apiKey: 'k1' }, 'one');
+      storage.saveConfig({ appName: 'y', apiKey: 'k2' }, 'two');
+      const profiles = storage.listProfiles();
+      expect(profiles).toContain('one');
+      expect(profiles).toContain('two');
     });
   });
 
