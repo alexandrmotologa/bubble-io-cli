@@ -7,7 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.2.0] — 2026-08-07
+
+### Added
+
+#### Backup — Workflow Automation
+- **`--json`** — Machine-readable JSON output mode for all backup operations
+  - Suppresses all chalk colors, ora spinners, and human-readable formatting
+  - Prints a single JSON object to stdout: `{ success, file, records, type, env, format, timestamp }`
+  - On error: `{ success: false, error: "<message>" }`
+  - Designed for use in GitHub Actions, GitLab CI, shell scripts, and cron jobs
+
+- **`--watch` + `--interval <seconds>`** — Continuous backup mode
+  - Runs a full backup cycle at the specified interval (minimum 10 seconds)
+  - Graceful Ctrl+C / SIGINT handling — prints a stop message and exits cleanly
+  - Works with `--json` for structured log output in automated pipelines
+  - Each cycle logs the output file path and next-run countdown
+
+- **`--destination <url>`** — Cloud upload after export
+  - `s3://bucket-name/path` — Upload to Amazon S3 (requires `npm install @aws-sdk/client-s3`)
+  - `gs://bucket-name/path` — Upload to Google Cloud Storage (requires `npm install @google-cloud/storage`)
+  - SDKs are loaded lazily — a clear error message guides installation if missing
+  - Appends the backup filename to the destination path automatically
+
+- **`--encrypt`** — AES-256-GCM encryption for backup files
+  - Reads passphrase from `BUBBLE_BACKUP_PASSPHRASE` environment variable (never from CLI args)
+  - Output file uses `.enc` extension
+  - Format: `base64(IV[16] | AuthTag[16] | CipherText[N])`
+  - Key derived from passphrase using `scrypt`
+
+#### New Utilities
+- **`src/utils/encryption.ts`** — `encrypt(data, passphrase)` / `decrypt(data, passphrase)` using Node.js built-in `crypto` (no external dependencies)
+- **`src/utils/cloud-upload.ts`** — `uploadToCloud(localPath, destination)` routing to S3 or GCS adapters
+
+#### Tests
+- 8 new unit tests for `encryption.ts` (round-trip, random IV, wrong passphrase rejection, tampered payload, edge cases)
+- **Total: 48/48 tests passing**
+
+---
+
 ## [1.1.0] — 2026-08-07
+
 
 ### Added
 
