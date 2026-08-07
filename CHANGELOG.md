@@ -28,6 +28,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--json` for CI environment comparison pipelines
 - `src/utils/schema-diff.ts` — `diffSchemas()` pure diff engine
 
+#### `schema erd` Sub-Command
+- `bubble-io-cli schema erd` — Generate a Mermaid.js Entity-Relationship Diagram (ERD) from your Bubble schema
+- Analyzes relationship fields dynamically by checking known data types
+- Output directly to terminal or save to a Markdown file (`--output ./erd.md`)
+- Renders natively in GitHub, VS Code, and standard markdown tools
+- `--include-system-types` flag to include built-in Bubble types (User, FileObject, etc.)
+- `src/utils/schema-erd.ts` — `generateErd()` generator logic
+
+
 #### `mock` Command — Local Mock Server
 - `bubble-io-cli mock --file backup.json --port 3333`
 - Starts an Express HTTP server compatible with the Bubble Data API format

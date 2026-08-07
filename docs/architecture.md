@@ -30,6 +30,7 @@ This document describes the internal structure, design decisions, and command fl
 │   src/utils/cloud-upload.ts   — S3 + GCS adapters               │
 │   src/utils/notifications.ts  — Slack + Discord webhooks        │
 │   src/utils/schema-diff.ts    — Schema diffing engine           │
+│   src/utils/schema-erd.ts     — ERD generation engine           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -55,7 +56,7 @@ Each file in `src/commands/` maps to one CLI sub-command (or sub-command group) 
 | `restore.ts` | `restore` | `bubble-api.ts` |
 | `diff.ts` | `diff` | `bubble-api.ts` |
 | `health.ts` | `health` | `bubble-api.ts` |
-| `schema.ts` | `schema list`, `schema diff` | `bubble-meta.ts`, `schema-diff.ts` |
+| `schema.ts` | `schema list`, `schema diff`, `schema erd` | `bubble-meta.ts`, `schema-diff.ts`, `schema-erd.ts` |
 | `workflow.ts` | `workflow trigger` | `bubble-api.ts` |
 | `seed.ts` | `seed` | `bubble-api.ts` |
 | `mock.ts` | `mock` | `express` |
@@ -276,6 +277,17 @@ Pure TypeScript diffing engine. No external dependencies.
 | Function | Description |
 |---|---|
 | `diffSchemas(typesA, typesB, envA, envB)` | Produce a `SchemaDiffResult` with added/removed types and field-level changes |
+
+---
+
+### `schema-erd.ts`
+
+Pure TypeScript generator for Mermaid.js ER diagrams. No external dependencies.
+
+| Function | Description |
+|---|---|
+| `generateErd(types, options)` | Generate a complete Mermaid.js `erDiagram` code block with relationships |
+| `generateErdData(types, options)` | Extracts pure relationship data (for testing) |
 
 ---
 

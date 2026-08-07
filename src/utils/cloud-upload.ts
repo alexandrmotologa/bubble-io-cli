@@ -24,6 +24,7 @@ function getMimeType(filePath: string): string {
 export async function uploadToS3(localPath: string, destination: string): Promise<void> {
   let S3Client: unknown, PutObjectCommand: unknown;
   try {
+    // @ts-expect-error — optional peer dependency, not installed by default
     const sdk = await import('@aws-sdk/client-s3');
     S3Client = sdk.S3Client;
     PutObjectCommand = sdk.PutObjectCommand;
@@ -69,6 +70,7 @@ export async function uploadToS3(localPath: string, destination: string): Promis
 export async function uploadToGCS(localPath: string, destination: string): Promise<void> {
   let Storage: unknown;
   try {
+    // @ts-expect-error — optional peer dependency, not installed by default
     const sdk = await import('@google-cloud/storage');
     Storage = sdk.Storage;
   } catch {

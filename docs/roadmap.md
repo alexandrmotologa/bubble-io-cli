@@ -88,6 +88,10 @@ This document outlines the planned features and improvements for future versions
 - [x] **Visual schema diff** (`bubble-io-cli schema diff`) between two environments
   - Color-coded: green=added, red=removed, yellow=changed (field-level)
   - `--json` for CI environment comparison
+- [x] **Schema Entity-Relationship Diagram** (`bubble-io-cli schema erd`)
+  - Generates Mermaid.js diagrams directly from your Bubble schema
+  - Analyzes relationship fields to link data types together
+  - `--output` flag to save directly as markdown files for GitHub/VS Code rendering
 - [x] **Local mock server** (`bubble-io-cli mock --file backup.json --port 3333`)
   - Full CRUD endpoints compatible with the Bubble Data API format
   - Cursor + limit pagination, optional CORS, multi-type loading

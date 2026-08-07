@@ -1,12 +1,14 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
+import { writeFile } from 'fs/promises';
 import { storage } from '../utils/storage.js';
 import { BubbleMetaClient } from '../services/bubble-meta.js';
 import { diffSchemas } from '../utils/schema-diff.js';
+import { generateErd, wrapInMarkdownDocument } from '../utils/schema-erd.js';
 
 /**
- * Registers the `schema` sub-command with its sub-commands `list` and `diff`.
+ * Registers the `schema` sub-command with its sub-commands `list`, `diff`, and `erd`.
  *
  * Usage:
  *   bubble-io-cli schema list
@@ -17,6 +19,11 @@ import { diffSchemas } from '../utils/schema-diff.js';
  *   bubble-io-cli schema diff
  *   bubble-io-cli schema diff --env-a version-test --env-b version-live
  *   bubble-io-cli schema diff --json
+ *   bubble-io-cli schema erd
+ *   bubble-io-cli schema erd --env version-live
+ *   bubble-io-cli schema erd --output ./erd.md
+ *   bubble-io-cli schema erd --include-system-types
+ *   bubble-io-cli schema erd --raw
  */
 export function registerSchemaCommand(program: Command): void {
   const schema = program
@@ -162,14 +169,14 @@ export function registerSchemaCommand(program: Command): void {
 
         if (result.identical) {
           spinner?.succeed(chalk.green('Schemas are identical across both environments.'));
-          if (isJsonMode) console.log(JSON.stringify({ success: true, identical: true, ...result }));
+          if (isJsonMode) console.log(JSON.stringify({ success: true, ...result }));
           return;
         }
 
         spinner?.succeed(chalk.yellow('Schema differences found'));
 
         if (isJsonMode) {
-          console.log(JSON.stringify({ success: true, identical: false, ...result }));
+          console.log(JSON.stringify({ success: true, ...result }));
           return;
         }
 
@@ -219,6 +226,71 @@ export function registerSchemaCommand(program: Command): void {
           console.log(JSON.stringify({ success: false, error: message }));
         } else {
           console.error(chalk.red(`\n❌ ${message}\n`));
+        }
+        process.exit(1);
+      }
+    });
+
+  // ── schema erd ──────────────────────────────────────────────────────────────
+  schema
+    .command('erd')
+    .description('Generate a Mermaid.js Entity-Relationship Diagram from your Bubble schema')
+    .option('-e, --env <environment>', 'Target environment', 'version-test')
+    .option('-p, --profile <name>', 'Profile to use for credentials')
+    .option('-o, --output <file>', 'Save the ERD to a markdown file (e.g. ./erd.md)')
+    .option('--include-system-types', 'Include Bubble built-in types (User, FileObject, etc.) as entities')
+    .option('--raw', 'Print the raw Mermaid code block only, without the markdown document wrapper')
+    .action(async (options: {
+      env: string;
+      profile?: string;
+      output?: string;
+      includeSystemTypes?: boolean;
+      raw?: boolean;
+    }) => {
+      const config = storage.getConfig(options.profile);
+      if (!config) {
+        const msg = 'No credentials configured. Run: bubble-io-cli config --app <name> --key <key>';
+        console.error(chalk.red(`❌ ${msg}`));
+        process.exit(1);
+      }
+
+      const spinner = ora({ text: 'Fetching schema from Bubble Meta API…', color: 'cyan' }).start();
+
+      try {
+        const meta = new BubbleMetaClient(config.appName, config.apiKey, options.env);
+        const types = await meta.getDataTypes();
+
+        spinner.succeed(chalk.green(`Fetched ${types.length} data type(s) — generating ERD…`));
+
+        const erdBlock = generateErd(types, {
+          includeSystemTypes: Boolean(options.includeSystemTypes),
+        });
+
+        if (options.output) {
+          // ── Write to file ────────────────────────────────────────────────
+          const content = options.raw
+            ? erdBlock
+            : wrapInMarkdownDocument(config.appName, options.env, erdBlock);
+
+          await writeFile(options.output, content, 'utf-8');
+          console.log(chalk.green(`\n✅ ERD saved to ${chalk.bold(options.output)}\n`));
+          console.log(chalk.dim(`   Open it in VS Code or push to GitHub to render the diagram.\n`));
+        } else {
+          // ── Print to stdout ──────────────────────────────────────────────
+          if (!options.raw) {
+            console.log(chalk.cyan(`\n📊 Entity-Relationship Diagram — ${chalk.bold(config.appName)} [${options.env}]\n`));
+          }
+          console.log(erdBlock);
+          if (!options.raw) {
+            console.log(chalk.dim(`\n  Tip: save to a file with --output <file.md> to render on GitHub.\n`));
+          }
+        }
+      } catch (error: unknown) {
+        spinner.fail(chalk.red('ERD generation failed'));
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(chalk.red(`\n❌ ${message}\n`));
+        if (message.includes('403')) {
+          console.error(chalk.dim('   → Enable the Meta API in your Bubble app: Settings → API → Enable Data API & check "Expose schema"\n'));
         }
         process.exit(1);
       }

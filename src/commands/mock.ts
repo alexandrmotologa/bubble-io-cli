@@ -52,7 +52,7 @@ export function registerMockCommand(program: Command): void {
     .option('-t, --type <datatype>', 'Override the data type name from the backup file')
     .option('--cors', 'Enable CORS headers (for browser-based testing)')
     .action(async (options: {
-      file: string | string[];
+      file: string;
       port: string;
       type?: string;
       cors?: boolean;
@@ -130,7 +130,7 @@ export function registerMockCommand(program: Command): void {
 
       // GET /api/1.1/obj/:type  — paginated list (Bubble-compatible envelope)
       app.get(`${BASE}/:type`, (req: Request, res: Response) => {
-        const { type } = req.params;
+        const type = req.params['type'] as string;
         const records = store[type] ?? store[type.toLowerCase()] ?? [];
 
         const cursor = parseInt(String(req.query['cursor'] ?? '0'), 10);
@@ -151,9 +151,10 @@ export function registerMockCommand(program: Command): void {
 
       // GET /api/1.1/obj/:type/:id  — single record
       app.get(`${BASE}/:type/:id`, (req: Request, res: Response) => {
-        const { type, id } = req.params;
+        const type = req.params['type'] as string;
+        const id = req.params['id'] as string;
         const records = store[type] ?? [];
-        const record = records.find((r) => (r as Record<string, unknown>)['_id'] === id);
+        const record = records.find((r: Record<string, unknown>) => r['_id'] === id);
 
         if (!record) {
           res.status(404).json({ error: `Record "${id}" not found in type "${type}"` });
@@ -164,7 +165,7 @@ export function registerMockCommand(program: Command): void {
 
       // POST /api/1.1/obj/:type  — create (in-memory)
       app.post(`${BASE}/:type`, (req: Request, res: Response) => {
-        const { type } = req.params;
+        const type = req.params['type'] as string;
         if (!store[type]) store[type] = [];
 
         const newId = `mock-${type}-${Date.now()}`;
@@ -176,9 +177,10 @@ export function registerMockCommand(program: Command): void {
 
       // PATCH /api/1.1/obj/:type/:id  — update (in-memory)
       app.patch(`${BASE}/:type/:id`, (req: Request, res: Response) => {
-        const { type, id } = req.params;
+        const type = req.params['type'] as string;
+        const id = req.params['id'] as string;
         const records = store[type] ?? [];
-        const idx = records.findIndex((r) => (r as Record<string, unknown>)['_id'] === id);
+        const idx = records.findIndex((r: Record<string, unknown>) => r['_id'] === id);
 
         if (idx === -1) {
           res.status(404).json({ error: `Record "${id}" not found in type "${type}"` });
@@ -191,9 +193,10 @@ export function registerMockCommand(program: Command): void {
 
       // DELETE /api/1.1/obj/:type/:id  — delete (in-memory)
       app.delete(`${BASE}/:type/:id`, (req: Request, res: Response) => {
-        const { type, id } = req.params;
+        const type = req.params['type'] as string;
+        const id = req.params['id'] as string;
         const before = (store[type] ?? []).length;
-        store[type] = (store[type] ?? []).filter((r) => (r as Record<string, unknown>)['_id'] !== id);
+        store[type] = (store[type] ?? []).filter((r: Record<string, unknown>) => r['_id'] !== id);
 
         if (store[type].length === before) {
           res.status(404).json({ error: `Record "${id}" not found in type "${type}"` });
