@@ -39,3 +39,6 @@ backup-*.json
 backup-*.csv
 backup-*.json.enc
 seeds-*.json
+ 
+# NPM pack tarballs
+*.tgz
