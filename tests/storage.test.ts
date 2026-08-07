@@ -38,15 +38,19 @@ vi.mock('configstore', () => {
     }
   }
 
+  // Use a class so `new Configstore()` works correctly in Vitest 4
+  class MockConfigstore {
+    set(key: string, value: unknown): void { setNested(store, key.split('.'), value); }
+    get(key: string): unknown { return getNested(store, key.split('.')); }
+    clear(): void { Object.keys(store).forEach((k) => delete store[k]); }
+    delete(key: string): void { deleteNested(store, key.split('.')); }
+  }
+
   return {
-    default: vi.fn().mockImplementation(() => ({
-      set: (key: string, value: unknown) => setNested(store, key.split('.'), value),
-      get: (key: string) => getNested(store, key.split('.')),
-      clear: () => { Object.keys(store).forEach((k) => delete store[k]); },
-      delete: (key: string) => deleteNested(store, key.split('.')),
-    })),
+    default: MockConfigstore,
   };
 });
+
 
 
 // Import after mocks are set up

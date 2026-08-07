@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.2.0] — 2026-08-07
+
+### Added
+
+#### `audit privacy` — PII & Privacy Security Audit Scanner
+- `bubble-io-cli audit privacy` — Scan your Bubble schema or a local backup file for potentially exposed Personally Identifiable Information (PII) and security risks
+- **Dual scan modes:**
+  - **Remote schema** — Fetches live schema via the Bubble Meta API and inspects all data type field names
+  - **Local file** — Parses a `bubble-io-cli backup` JSON file and reconstructs field names from record keys
+- **8 PII detection categories** across 3 risk levels:
+  - 🔴 `CRITICAL` — Credentials (`password`, `token`, `api_key`, `secret`, `ssn`, `credit_card`, …)
+  - 🟠 `HIGH` — Contact PII (`email`, `phone`, `address`, `dob`), Government IDs (`passport`, `national_id`), Medical (`diagnosis`, `patient`), Biometric (`fingerprint`, `face_id`)
+  - 🟡 `MEDIUM` — Geolocation (`gps`, `latitude`, `longitude`), Demographics (`full_name`, `salary`, `gender`)
+- **Case-insensitive + compound matching** — `EMAIL`, `User_Email_Address`, `customer_email` all detected
+- **First-match-wins deduplication** — one finding per field, highest risk wins
+- **Rich terminal report** — color-coded findings with per-finding reasons and Bubble Privacy Rule recommendations
+- **CI-friendly exit codes** — exits with code `1` when CRITICAL findings are detected (usable in GitHub Actions)
+- `--file <path>` — Scan a local backup JSON file
+- `--env <env>` — Target environment for remote schema scan (default: `version-test`)
+- `--type <name>` — Limit scan to a single data type
+- `--min-risk MEDIUM|HIGH|CRITICAL` — Filter output by minimum severity (default: `MEDIUM`)
+- `--json` — Machine-readable JSON output for automated pipelines
+- `--profile <name>` — Named credential profile
+- `src/utils/pii-scanner.ts` — Pure, deterministic PII detection engine
+  - `scanTypes()`, `scanSchema()`, `scanBackupFile()` — all exported and fully tested
+  - `PII_PATTERNS` — exported pattern dictionary for extensibility and testing
+
+#### Infrastructure
+- **Vitest upgraded** `^1.0.0` → `^4.0.0` — Full Node.js v24 compatibility
+- **`vitest.config.mjs`** — ESM config to resolve CJS deprecation and TypeScript source paths
+- **`tests/storage.test.ts`** — Fixed `Configstore` mock to use a proper class constructor (Vitest 4 breaking change)
+
+#### Tests
+- 40 new unit tests for `pii-scanner.ts`
+- **Total: 226/226 tests passing** (12 test files)
+
+---
+
 ## [3.1.0] — 2026-08-07
 
 ### Added

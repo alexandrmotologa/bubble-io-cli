@@ -1,6 +1,6 @@
 {
   "name": "bubble-io-cli",
-  "version": "3.1.0",
+  "version": "3.2.0",
   "description": "An open-source CLI for managing, backing up, and interacting with Bubble.io applications via the Data API",
   "author": "bubble-io-cli contributors",
   "license": "MIT",
@@ -29,7 +29,10 @@
     "developer-tools",
     "type-generation",
     "query",
-    "repl"
+    "repl",
+    "security-audit",
+    "pii",
+    "privacy"
   ],
   "bin": {
     "bubble-io-cli": "./dist/index.js"
@@ -63,7 +66,7 @@
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
-    "vitest": "^1.0.0"
+    "vitest": "^4.0.0"
   },
   "engines": {
     "node": ">=18.0.0"

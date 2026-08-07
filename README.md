@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green?style=flat-square&logo=node.js)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
-[![Tests](https://img.shields.io/badge/tests-186%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
+[![Tests](https://img.shields.io/badge/tests-226%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
 </div>
@@ -604,6 +604,84 @@ bubble-io-cli query --profile staging --page-size 10
 
 ---
 
+### `audit privacy` — PII & Privacy Security Audit (New in v3.2.0)
+
+Scan your Bubble schema or a local backup file for potentially exposed **Personally Identifiable Information (PII)** and security risks. The scanner detects high-risk field names across 8 categories and outputs a color-coded report with Bubble Privacy Rule recommendations.
+
+```bash
+# Scan your live remote schema (requires credentials)
+bubble-io-cli audit privacy
+
+# Scan a local backup JSON file
+bubble-io-cli audit privacy --file ./backup-user-2026-08-07.json
+
+# Scan only a specific data type
+bubble-io-cli audit privacy --type User
+
+# Only show CRITICAL and HIGH findings
+bubble-io-cli audit privacy --min-risk HIGH
+
+# Target the production environment
+bubble-io-cli audit privacy --env version-live
+
+# JSON output for CI pipelines
+bubble-io-cli audit privacy --json
+```
+
+**Example terminal output:**
+
+```
+🔍 Privacy Audit Report — my-app [version-test]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  source: remote schema   scanned: 8 types · 54 fields
+  Findings: 2 CRITICAL · 3 HIGH · 1 MEDIUM
+
+  ──────────────────────────────────────────────────────────
+
+  🔴 CRITICAL — User.password_hash [text]
+     ⚠ Field name matches credential pattern ("password"). Exposing this field risks account takeover.
+     💡 In Bubble Privacy Rules: set this field to "No one" access. Never expose credentials via the Data API.
+
+  🔴 CRITICAL — User.api_token [text]
+     ⚠ Field name matches credential pattern ("token"). Exposing this field risks account takeover.
+     💡 In Bubble Privacy Rules: set this field to "No one" access.
+
+  🟠 HIGH — User.email [text]
+     ⚠ Field name matches personal contact information ("email"). PII exposure risk.
+     💡 In Bubble Privacy Rules: restrict to "This User" and explicitly granted roles only.
+
+  📋 Next Steps:
+     1. Open Bubble Editor → Data → Privacy
+     2. For each CRITICAL finding — set the field to "No one" access
+     3. For each HIGH finding — restrict to authenticated users or "This User"
+```
+
+**Detection categories:**
+
+| Risk | Category | Example field names |
+|---|---|---|
+| 🔴 CRITICAL | Credentials | `password`, `token`, `api_key`, `secret`, `auth_token` |
+| 🔴 CRITICAL | Financial | `credit_card`, `ssn`, `iban`, `bank_account`, `cvv` |
+| 🟠 HIGH | Government ID | `passport`, `national_id`, `driver_license` |
+| 🟠 HIGH | Biometric | `fingerprint`, `face_id`, `biometric` |
+| 🟠 HIGH | Contact PII | `email`, `phone`, `address`, `date_of_birth` |
+| 🟠 HIGH | Medical | `diagnosis`, `medical`, `patient`, `prescription` |
+| 🟡 MEDIUM | Geolocation | `gps`, `latitude`, `longitude`, `coordinates` |
+| 🟡 MEDIUM | Demographics | `full_name`, `salary`, `gender`, `ethnicity` |
+
+> **CI Integration:** The command exits with code `1` when CRITICAL findings are detected — use it as a security gate in GitHub Actions.
+
+| Option | Description | Default |
+|---|---|---|
+| `--file <path>` | Scan a local backup JSON file | — |
+| `--env <env>` | Target Bubble environment | `version-test` |
+| `--type <name>` | Scan only a specific data type | all types |
+| `--min-risk <level>` | Minimum severity: `MEDIUM`, `HIGH`, `CRITICAL` | `MEDIUM` |
+| `--json` | Machine-readable JSON output | false |
+| `--profile <name>` | Named credential profile | active |
+
+---
+
 ### `completions` — Shell Tab Completion
 
 
@@ -640,6 +718,7 @@ bubble-io-cli/
 │   │   ├── mock.ts                # mock — local development server
 │   │   ├── plugin.ts              # plugin list / get / deploy
 │   │   ├── generate.ts            # generate — scaffold templates
+│   │   ├── audit.ts               # audit privacy — PII scanner
 │   │   └── completions.ts         # completions — shell tab completion
 │   ├── services/                  # Business logic
 │   │   ├── bubble-api.ts          # BubbleApiClient — Data API (CRUD + pagination)
@@ -651,8 +730,9 @@ bubble-io-cli/
 │       ├── encryption.ts          # AES-256-GCM encrypt/decrypt
 │       ├── cloud-upload.ts        # S3 + GCS upload adapters
 │       ├── notifications.ts       # Slack + Discord webhook dispatcher
+│       ├── pii-scanner.ts         # PII detection engine (scanTypes, scanSchema, scanBackupFile)
 │       └── schema-diff.ts         # Schema diffing engine
-└── tests/                         # Vitest unit tests (68 tests)
+└── tests/                         # Vitest unit tests (226 tests)
     ├── bubble-api.test.ts
     ├── storage.test.ts
     ├── csv.test.ts
