@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green?style=flat-square&logo=node.js)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
-[![Tests](https://img.shields.io/badge/tests-226%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
+[![Tests](https://img.shields.io/badge/tests-240%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
 </div>
@@ -781,6 +781,58 @@ npm test
 # Type check only
 npm run lint
 ```
+
+## 🔌 Plugin Extensibility (v3.3.0+)
+
+`bubble-io-cli` supports a lightweight plugin system that allows you to extend the CLI with custom commands — without modifying the core source.
+
+### Install a Community Plugin
+
+```bash
+# Install any npm package named bubble-io-cli-plugin-*
+npm install -g bubble-io-cli-plugin-example
+
+# The plugin is automatically discovered on next CLI run
+bubble-io-cli plugin ext list
+```
+
+### Write a Local Plugin in 30 Seconds
+
+```bash
+mkdir -p ~/.bubble-cli/plugins
+```
+
+Create `~/.bubble-cli/plugins/hello.js`:
+
+```js
+module.exports = {
+  name: 'hello',
+  version: '1.0.0',
+  description: 'My first plugin',
+  register(program) {
+    program.command('hello').description('Say hello!').action(() => {
+      console.log('Hello from my plugin! 🎉');
+    });
+  },
+};
+```
+
+```bash
+bubble-io-cli hello
+# → Hello from my plugin! 🎉
+```
+
+### Manage Plugins
+
+```bash
+bubble-io-cli plugin ext list          # List all loaded plugins
+bubble-io-cli plugin ext info <name>   # Show plugin details
+bubble-io-cli plugin ext reload        # Force plugin re-discovery
+```
+
+### Write Your Own Plugin
+
+→ See the full **[Plugin Authoring Guide](docs/PLUGIN_AUTHORING.md)** for the complete interface spec, TypeScript template, publishing guide, Commander patterns, and examples.
 
 ---
 

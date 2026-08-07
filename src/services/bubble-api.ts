@@ -57,11 +57,22 @@ export class BubbleApiClient {
   private readonly appName: string;
   private readonly environment: string;
 
-  constructor(appName: string, apiKey: string, environment: string = 'version-test') {
+  /**
+   * @param appName     - The Bubble.io app subdomain (e.g. 'my-app')
+   * @param apiKey      - The Bubble Data API key
+   * @param environment - Target environment (default: 'version-test')
+   * @param httpClient  - Optional pre-configured AxiosInstance (used in tests for DI)
+   */
+  constructor(
+    appName: string,
+    apiKey: string,
+    environment: string = 'version-test',
+    httpClient?: AxiosInstance
+  ) {
     this.appName = appName;
     this.environment = environment;
 
-    this.client = axios.create({
+    this.client = httpClient ?? axios.create({
       baseURL: `https://${appName}.bubbleapps.io/${environment}/api/1.1/obj`,
       headers: {
         Authorization: `Bearer ${apiKey}`,

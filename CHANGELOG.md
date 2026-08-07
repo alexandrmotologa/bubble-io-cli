@@ -7,6 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.3.0] — 2026-08-08
+
+### Added
+
+#### CLI Plugin Extensibility System
+- **`src/utils/plugin-loader.ts`** — New plugin discovery and registration engine (zero new dependencies, uses Node stdlib only)
+- **`BubbleCLIPlugin` interface** — Public contract for third-party CLI extensions:
+  - `name: string` — unique plugin identifier
+  - `version?: string` — optional semver version
+  - `description?: string` — optional one-line description
+  - `register(program: Command): void` — called at startup with the root Commander instance
+- **Discovery mechanism** — scans three sources in priority order:
+  1. `$CWD/.bubble-cli/plugins/*.js` — project-scoped plugins (committed to repo)
+  2. `$HOME/.bubble-cli/plugins/*.js` — user-global plugins
+  3. `npm root -g / bubble-io-cli-plugin-*` — globally installed npm packages
+- **Error isolation** — a broken plugin (throws during load or `register()`) is caught and reported without crashing the CLI or blocking other plugins
+- **ESM interop** — supports both `module.exports = plugin` and `module.exports.default = plugin`
+- **Deduplication** — the same resolved path is only loaded once, even if it appears in multiple discovery sources
+
+#### `plugin ext` — New sub-command group
+- `bubble-io-cli plugin ext list [--json]` — lists all discovered CLI extension plugins (name, version, source path, load status)
+- `bubble-io-cli plugin ext info <name> [--json]` — shows details about a specific loaded plugin
+- `bubble-io-cli plugin ext reload [--json]` — forces a fresh plugin discovery and reloads all extensions
+
+#### Public API Export
+- **`bubble-io-cli/plugin`** — new package export path exposing the `BubbleCLIPlugin` interface for TypeScript plugin authors
+
+#### Documentation
+- **`docs/PLUGIN_AUTHORING.md`** — comprehensive plugin authoring guide including:
+  - Quick-start tutorial (local `.js` plugin)
+  - TypeScript template with full type safety
+  - npm publishing guide (`bubble-io-cli-plugin-*` naming convention)
+  - Available Commander patterns (top-level commands, sub-command groups, credential access)
+  - Discovery rules table
+  - Best practices
+  - Two full working examples
+
+### Changed
+- **`src/index.ts`** — CLI startup now calls `loadPlugins(program)` before `parseAsync()`, wrapped in an async IIFE for CommonJS compatibility
+- **`package.json`** — version bumped to `3.3.0`, `exports` field added, `extensible-cli` and `plugins` keywords added
+
+### Infrastructure
+- **`BubbleApiClient` constructor** — added optional 4th parameter `httpClient?: AxiosInstance` for dependency injection (enables test isolation without module-level mocking)
+- **`vitest.config.mjs`** — pool switched from `forks` to `vmForks` to resolve Node 24.12.0 + Vitest 4.x IPC bootstrapping failure
+- **`axios`** — pinned to `^1.7.0` (ESM-only axios 1.19+ was incompatible with vitest module mocking in vmForks)
+- **Tests** — 15 new tests for `plugin-loader.ts` (240 total, 13 test files, all passing)
+
+---
+
 ## [3.2.0] — 2026-08-07
 
 ### Added

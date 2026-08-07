@@ -4,6 +4,7 @@ import ora from 'ora';
 import { readFileSync } from 'fs';
 import { BubblePluginClient, PluginDefinitionFile } from '../services/bubble-plugin.js';
 import { storage } from '../utils/storage.js';
+import { getLoadedPlugins } from '../utils/plugin-loader.js';
 
 /**
  * Registers the `plugin` sub-command group.
@@ -179,6 +180,115 @@ export function registerPluginCommand(program: Command): void {
       } catch (error: unknown) {
         spinner?.fail(chalk.red('Plugin deploy failed'));
         handleError(error, isJsonMode);
+      }
+    });
+
+  // ── plugin ext ──────────────────────────────────────────────────────────────
+  const ext = plugin
+    .command('ext')
+    .description('Manage bubble-io-cli extension plugins (local and global npm packages)');
+
+  // plugin ext list
+  ext
+    .command('list')
+    .description('List all discovered CLI extension plugins')
+    .option('--json', 'Output as machine-readable JSON')
+    .action((options: { json?: boolean }) => {
+      const isJsonMode = Boolean(options.json);
+      const results = getLoadedPlugins();
+
+      if (isJsonMode) {
+        const data = results.map((r) => (r.plugin
+          ? { name: r.plugin.name, version: r.plugin.version ?? null, description: r.plugin.description ?? null, source: r.source, status: 'loaded' }
+          : { source: r.source, error: r.error, status: 'error' }
+        ));
+        console.log(JSON.stringify({ success: true, total: results.length, plugins: data }, null, 2));
+        return;
+      }
+
+      console.log();
+      if (results.length === 0) {
+        console.log(chalk.dim('  No CLI extension plugins loaded.'));
+        console.log(chalk.dim('  → Place a .js file in ~/.bubble-cli/plugins/ or install a bubble-io-cli-plugin-* npm package globally.\n'));
+        return;
+      }
+
+      console.log(chalk.cyan.bold(`🔌 CLI Extension Plugins (${results.length} found)\n`));
+      for (const r of results) {
+        if (r.plugin) {
+          console.log(`  ${chalk.green('✓')} ${chalk.bold(r.plugin.name)}${r.plugin.version ? chalk.dim(` v${r.plugin.version}`) : ''}`);
+          if (r.plugin.description) console.log(`    ${chalk.dim(r.plugin.description)}`);
+          console.log(`    ${chalk.dim('source:')} ${chalk.dim(r.source)}`);
+        } else {
+          console.log(`  ${chalk.red('✗')} ${chalk.red('(load error)')} ${chalk.dim(r.source)}`);
+          console.log(`    ${chalk.dim(r.error)}`);
+        }
+        console.log();
+      }
+    });
+
+  // plugin ext info <name>
+  ext
+    .command('info <name>')
+    .description('Show details about a specific loaded CLI extension plugin')
+    .option('--json', 'Output as machine-readable JSON')
+    .action((name: string, options: { json?: boolean }) => {
+      const isJsonMode = Boolean(options.json);
+      const results = getLoadedPlugins();
+      const match = results.find((r) => r.plugin?.name === name);
+
+      if (!match || !match.plugin) {
+        const msg = `No loaded plugin named "${name}". Run: bubble-io-cli plugin ext list`;
+        if (isJsonMode) { console.log(JSON.stringify({ success: false, error: msg })); }
+        else { console.error(chalk.red(`❌ ${msg}`)); }
+        process.exit(1);
+      }
+
+      const p = match.plugin;
+      if (isJsonMode) {
+        console.log(JSON.stringify({ success: true, name: p.name, version: p.version ?? null, description: p.description ?? null, source: match.source }));
+        return;
+      }
+
+      console.log();
+      console.log(chalk.cyan.bold(`🔌 Plugin: ${p.name}`));
+      if (p.version)     console.log(`   ${chalk.bold('Version:')}     ${chalk.cyan(p.version)}`);
+      if (p.description) console.log(`   ${chalk.bold('Description:')} ${p.description}`);
+      console.log(`   ${chalk.bold('Source:')}      ${chalk.dim(match.source)}`);
+      console.log();
+    });
+
+  // plugin ext reload
+  ext
+    .command('reload')
+    .description('Force a fresh plugin discovery and reload all extension plugins')
+    .option('--json', 'Output as machine-readable JSON')
+    .action(async (options: { json?: boolean }) => {
+      const isJsonMode = Boolean(options.json);
+      const spinner = isJsonMode ? null : ora({ text: 'Reloading plugins…', color: 'cyan' }).start();
+
+      try {
+        // Import lazily to avoid circular dependency at module init
+        const { loadPlugins } = await import('../utils/plugin-loader.js');
+        // Re-use the parent program from Commander's parent chain
+        const rootProgram = ext.parent?.parent;
+        if (!rootProgram) throw new Error('Could not resolve root Commander program.');
+
+        const results = await loadPlugins(rootProgram);
+        const loaded = results.filter((r) => r.plugin).length;
+        const errors = results.filter((r) => r.error).length;
+
+        spinner?.succeed(chalk.green(`Reloaded ${loaded} plugin(s)${errors > 0 ? `, ${errors} error(s)` : ''}`));
+
+        if (isJsonMode) {
+          console.log(JSON.stringify({ success: true, loaded, errors }));
+        }
+      } catch (err: unknown) {
+        spinner?.fail(chalk.red('Plugin reload failed'));
+        const msg = err instanceof Error ? err.message : String(err);
+        if (isJsonMode) { console.log(JSON.stringify({ success: false, error: msg })); }
+        else { console.error(chalk.red(`\n❌ ${msg}\n`)); }
+        process.exit(1);
       }
     });
 }
