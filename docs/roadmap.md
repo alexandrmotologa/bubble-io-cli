@@ -59,7 +59,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v2.0.0 — Extended Platform Support (Current)
+## ✅ v2.0.0 — Extended Platform Support (Shipped)
 
 - [x] **`health` command** — Check API connectivity, validate credentials, report latency per environment
   - `--all` to test both version-test and version-live in one call
@@ -79,12 +79,23 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## 💡 Community Ideas (Under Consideration)
+## ✅ v2.1.0 — Community Features (Current)
 
-- Slack / Discord notification hooks on backup completion
-- Visual diff output for schema changes between environments
-- Integration with the Bubble Plugin Editor API
-- Local mock server to simulate Bubble responses for offline development
+- [x] **Slack / Discord notification hooks** (`--notify-slack <url>` / `--notify-discord <url>`) on backup completion
+  - Rich Block Kit format for Slack, Embeds with color status for Discord
+  - `--notify-on-error` to also notify on failure
+  - Uses Node.js built-in `https` module — no extra dependencies
+- [x] **Visual schema diff** (`bubble-io-cli schema diff`) between two environments
+  - Color-coded: green=added, red=removed, yellow=changed (field-level)
+  - `--json` for CI environment comparison
+- [x] **Local mock server** (`bubble-io-cli mock --file backup.json --port 3333`)
+  - Full CRUD endpoints compatible with the Bubble Data API format
+  - Cursor + limit pagination, optional CORS, multi-type loading
+  - `/health` endpoint for integration test probes
+- [x] **Plugin Editor API** (`bubble-io-cli plugin list` / `plugin get` / `plugin deploy`)
+  - List, inspect, and deploy Bubble plugins via the Plugin Editor API
+  - `--dry-run` for safe deploy preview
+  - Reads token from `BUBBLE_PLUGIN_TOKEN` env var
 
 ---
 

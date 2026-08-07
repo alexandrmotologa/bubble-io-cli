@@ -8,6 +8,7 @@ import { BubbleApiClient, BubbleConstraint } from '../services/bubble-api.js';
 import { jsonToCsv } from '../utils/csv.js';
 import { encrypt } from '../utils/encryption.js';
 import { uploadToCloud } from '../utils/cloud-upload.js';
+import { dispatchNotifications } from '../utils/notifications.js';
 
 type ExportFormat = 'json' | 'csv';
 
@@ -23,6 +24,9 @@ interface BackupOptions {
   interval: string;
   destination?: string;
   encrypt?: boolean;
+  notifySlack?: string;
+  notifyDiscord?: string;
+  notifyOnError?: boolean;
 }
 
 interface BackupRunResult {
@@ -165,6 +169,9 @@ export function registerBackupCommand(program: Command): void {
     .option('--interval <seconds>', 'Seconds between watch-mode backups', '3600')
     .option('--destination <url>', 'Cloud upload destination: s3://bucket/path or gs://bucket/path')
     .option('--encrypt', 'Encrypt the backup file using AES-256-GCM (reads passphrase from BUBBLE_BACKUP_PASSPHRASE env var)')
+    .option('--notify-slack <webhookUrl>', 'Send a Slack notification on completion (Incoming Webhook URL)')
+    .option('--notify-discord <webhookUrl>', 'Send a Discord notification on completion (Webhook URL)')
+    .option('--notify-on-error', 'Also send notifications when backup fails (default: success only)')
     .option('--json', 'Output results as machine-readable JSON (suppresses colors and spinners)')
     .action(async (options: BackupOptions & { json?: boolean }) => {
       const isJsonMode = Boolean(options.json);
@@ -305,11 +312,27 @@ export function registerBackupCommand(program: Command): void {
       }
 
       // ── Single-run mode ────────────────────────────────────────────────────
+      const startTime = Date.now();
       try {
         const result = await runBackupOnce(options, client, constraints, maxRecords, format, passphrase, isJsonMode);
+        const durationMs = Date.now() - startTime;
+
+        // ── Notifications (success) ──────────────────────────────────────────
+        if (options.notifySlack || options.notifyDiscord) {
+          try {
+            await dispatchNotifications(
+              { slack: options.notifySlack, discord: options.notifyDiscord },
+              { appName: client.app, dataType: result.type, env: result.env, records: result.records, file: result.file, format: result.format, success: true, durationMs }
+            );
+            if (!isJsonMode) console.log(chalk.dim('   📣 Notifications sent.'));
+          } catch (notifyErr: unknown) {
+            const nm = notifyErr instanceof Error ? notifyErr.message : String(notifyErr);
+            if (!isJsonMode) console.warn(chalk.yellow(`   ⚠ ${nm}`));
+          }
+        }
 
         if (isJsonMode) {
-          console.log(JSON.stringify({ success: true, ...result }));
+          console.log(JSON.stringify({ success: true, ...result, durationMs }));
           return;
         }
 
@@ -327,6 +350,17 @@ export function registerBackupCommand(program: Command): void {
         console.log();
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
+
+        // ── Notifications (error) ────────────────────────────────────────────
+        if ((options.notifySlack || options.notifyDiscord) && options.notifyOnError) {
+          try {
+            await dispatchNotifications(
+              { slack: options.notifySlack, discord: options.notifyDiscord },
+              { appName: client.app, dataType: options.type, env: options.env, records: 0, file: '', format: options.format, success: false, error: message }
+            );
+          } catch { /* silently ignore notify errors during error handling */ }
+        }
+
         if (isJsonMode) {
           console.log(JSON.stringify({ success: false, error: message }));
         } else {
@@ -336,3 +370,4 @@ export function registerBackupCommand(program: Command): void {
       }
     });
 }
+
