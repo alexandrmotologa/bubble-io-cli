@@ -17,11 +17,19 @@
     "bubble.io",
     "cli",
     "backup",
+    "restore",
     "data-api",
     "no-code",
-    "typescript"
+    "typescript",
+    "schema",
+    "mock",
+    "plugin",
+    "workflow",
+    "seed",
+    "developer-tools"
   ],
   "bin": {
+
     "bubble-io-cli": "./dist/index.js"
   },
   "main": "./dist/index.js",

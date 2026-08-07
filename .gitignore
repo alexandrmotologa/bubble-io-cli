@@ -34,5 +34,8 @@ coverage/
 *.tmp
 *.bak
 
-# Bubble-io-cli backups
+# Bubble-io-cli output files (exclude from repo)
 backup-*.json
+backup-*.csv
+backup-*.json.enc
+seeds-*.json
