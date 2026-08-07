@@ -294,6 +294,26 @@ Output is color-coded: `+` green (added), `-` red (removed), `~` yellow (changed
 
 ---
 
+### `schema erd` — Generate Entity-Relationship Diagram
+
+Generate a Mermaid.js Entity-Relationship Diagram from your Bubble schema. It automatically detects relationships between your data types.
+
+```bash
+# Print Mermaid ERD to the terminal
+bubble-io-cli schema erd
+
+# Save directly to a markdown file (renders in GitHub/VS Code)
+bubble-io-cli schema erd --output ./erd.md
+
+# Include Bubble built-in types (User, FileObject, etc.)
+bubble-io-cli schema erd --include-system-types
+
+# Print raw Mermaid code block only (useful for piping)
+bubble-io-cli schema erd --raw
+```
+
+---
+
 ### `workflow trigger` — Trigger Backend Workflows
 
 Call Bubble backend workflows that have "This workflow can be triggered by API" enabled.
