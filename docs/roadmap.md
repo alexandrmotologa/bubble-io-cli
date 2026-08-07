@@ -47,7 +47,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v1.3.0 — Developer Experience (Current)
+## ✅ v1.3.0 — Developer Experience (Shipped)
 
 - [x] **Multi-app profiles** (`bubble-io-cli config --profile staging`) — store and switch credentials for multiple Bubble apps
   - `--list` to see all profiles with active indicator
@@ -59,14 +59,23 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## 🔮 v2.0.0 — Extended Platform Support
+## ✅ v2.0.0 — Extended Platform Support (Current)
 
-- [ ] **Workflow trigger** (`bubble-io-cli workflow trigger --name "Send Invoice"`) — call Bubble backend workflows via API
-- [ ] **App health check** (`bubble-io-cli health`) — check API connectivity, quota usage, and data type existence
-- [ ] **Schema introspection** (`bubble-io-cli schema list`) — list all data types and their fields using the Bubble Meta API
-- [ ] **Code generation from schema** — auto-generate TypeScript interfaces for all Bubble data types
-- [ ] **Deployment helpers** — integrate with Bubble's version management API to promote test to live
-- [ ] **Data seeding** (`bubble-io-cli seed --file seed-data.json`) — create records in bulk for testing environments
+- [x] **`health` command** — Check API connectivity, validate credentials, report latency per environment
+  - `--all` to test both version-test and version-live in one call
+  - `--json` for CI health-check gates
+- [x] **`schema list` command** — List all data types and their fields using the Bubble Meta API
+  - `--fields` for full field listing, `--type <name>` to inspect a single type
+  - `--json` to export schema as machine-readable JSON
+- [x] **`workflow trigger` command** — Call Bubble backend workflows via API
+  - `--data <json>` to pass parameters to the workflow
+  - `--json` for scripted workflow automation
+- [x] **`seed` command** — Bulk-create records from a local JSON fixture file
+  - Configurable `--concurrency` for throughput tuning
+  - `--dry-run` to preview without side effects
+  - `--json` for CI pipeline integration
+- [x] **`BubbleApiClient.triggerWorkflow()`** — POST to Bubble /wf/ endpoint
+- [x] **`BubbleMetaClient`** (`src/services/bubble-meta.ts`) — Meta API client for schema introspection
 
 ---
 

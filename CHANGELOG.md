@@ -7,7 +7,46 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.0.0] — 2026-08-07
+
+### Added
+
+#### `health` Command
+- Check API connectivity and credential validity for one or both environments
+- `--all` — Test both `version-test` and `version-live` in a single call
+- Reports latency (ms) per environment
+- `--json` for CI health-check gates (exits with code 1 if any env fails)
+
+#### `schema list` Command
+- Fetch all data types and their field definitions via the Bubble Meta API
+- `--fields` — Show all fields for every type
+- `--type <name>` — Inspect a single data type in detail
+- `--json` — Export the full schema as a JSON object
+- Helpful 403 error message guiding users to enable the Meta API in app settings
+
+#### `workflow trigger` Command
+- Trigger a Bubble backend workflow by its API name
+- `--data <json>` — Pass parameters as a JSON object to the workflow
+- `--json` for scripted automation and CI pipelines
+- 404 guidance for enabling "This workflow can be triggered by API" in Bubble
+
+#### `seed` Command
+- Bulk-create records from a local JSON fixture file (`{ "type": "...", "records": [...] }`)
+- `--concurrency <number>` — Control throughput (1–20 parallel requests)
+- `--dry-run` — Preview without side effects; shows record count and type
+- `--json` — Structured output including created IDs and any errors
+
+#### Core Infrastructure
+- `BubbleApiClient.triggerWorkflow(name, data)` — POST to Bubble `/wf/<name>` endpoint
+- `src/services/bubble-meta.ts` — `BubbleMetaClient` for Bubble Meta API schema introspection
+
+#### Tests
+- **Total: 53/53 tests passing**
+
+---
+
 ## [1.3.0] — 2026-08-07
+
 
 ### Added
 

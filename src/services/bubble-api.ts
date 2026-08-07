@@ -189,6 +189,23 @@ export class BubbleApiClient {
   }
 
   /**
+   * Trigger a Bubble backend workflow by its API name.
+   * The workflow must have "This workflow can be triggered by API" enabled in Bubble.
+   * Sends a POST request to /wf/<workflowName> with the provided payload.
+   */
+  async triggerWorkflow(
+    workflowName: string,
+    data: Record<string, unknown> = {}
+  ): Promise<unknown> {
+    // Bubble workflow endpoint is at a different base path (/wf/) not /obj/
+    const baseUrl = `https://${this.appName}.bubbleapps.io/${this.environment}/api/1.1/wf`;
+    const response = await this.client.post(`${baseUrl}/${workflowName}`, data, {
+      baseURL: '', // override the /obj/ base to use absolute URL
+    });
+    return response.data;
+  }
+
+  /**
    * Check connectivity to the Bubble app by performing a minimal API call.
    */
   async ping(typeName: string = 'User'): Promise<boolean> {
