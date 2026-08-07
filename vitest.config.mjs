@@ -5,9 +5,10 @@ export default defineConfig({
     globals: false,
     environment: 'node',
     include: ['tests/**/*.test.ts'],
-    pool: 'forks',
-    // Disable Node 24 native type stripping to prevent conflicts with Vitest's test runner
-    execArgv: ['--no-experimental-strip-types'],
+    // vmForks: runs tests in Node VM contexts (same process) — avoids fork IPC
+    // bootstrapping failure on Node 24.12.0 + Vitest 4.x where child process
+    // workers fail to receive their injected test-runner config object.
+    pool: 'vmForks',
   },
   resolve: {
     // Map ESM .js extension imports to TypeScript source files

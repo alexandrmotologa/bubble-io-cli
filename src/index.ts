@@ -16,6 +16,7 @@ import { registerMockCommand } from './commands/mock.js';
 import { registerPluginCommand } from './commands/plugin.js';
 import { registerQueryCommand } from './commands/query.js';
 import { registerAuditCommand } from './commands/audit.js';
+import { loadPlugins } from './utils/plugin-loader.js';
 
 const program = new Command();
 
@@ -25,7 +26,7 @@ program
     chalk.cyan('🫧  bubble-io-cli') +
     chalk.dim(' — A developer CLI for managing and interacting with Bubble.io applications')
   )
-  .version('3.2.0', '-v, --version', 'Output the current version')
+  .version('3.3.0', '-v, --version', 'Output the current version')
   .helpOption('-h, --help', 'Display help for command');
 
 // Register all sub-commands
@@ -50,8 +51,14 @@ if (process.argv.length <= 2) {
   process.exit(0);
 }
 
-program.parseAsync(process.argv).catch((error: unknown) => {
-  const message = error instanceof Error ? error.message : String(error);
-  console.error(chalk.red(`\n❌ Unexpected error: ${message}\n`));
-  process.exit(1);
-});
+// Wrap in an async IIFE — CommonJS module target does not support top-level await
+(async () => {
+  // Load external plugins before parsing — each plugin registers its commands
+  await loadPlugins(program);
+
+  program.parseAsync(process.argv).catch((error: unknown) => {
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(chalk.red(`\n❌ Unexpected error: ${message}\n`));
+    process.exit(1);
+  });
+})();
