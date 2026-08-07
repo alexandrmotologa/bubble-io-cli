@@ -7,7 +7,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.3.0] — 2026-08-07
+
+### Added
+
+#### Multi-App Profiles (`config` command)
+- `--profile <name>` — Save credentials under a named profile (default: `"default"`)
+- `--list` — Display all stored profiles with an active indicator (`●`)
+- `--use <profile>` — Switch the currently active profile
+- `--clear --all` — Wipe all profiles and reset to factory defaults
+- All commands implicitly use the active profile; no migration needed for existing users
+
+#### Shell Completions (`completions` command)
+- `bubble-io-cli completions --bash` — Bash completion script
+- `bubble-io-cli completions --zsh` — Zsh completion script  
+- `bubble-io-cli completions --fish` — Fish completion script
+- Context-aware suggestions: environment values, format types, restore modes, template names, JSON file paths
+- Install with: `source <(bubble-io-cli completions --bash)` in `~/.bashrc`
+
+#### Core
+- `StorageManager` extended with: `getActiveProfile()`, `setActiveProfile()`, `listProfiles()`, profile-aware `saveConfig/getConfig/clearConfig`
+
+#### Tests
+- 5 new profile unit tests in `storage.test.ts`
+- Configstore mock updated to support nested dot-notation objects
+- **Total: 53/53 tests passing**
+
+---
+
 ## [1.2.0] — 2026-08-07
+
 
 ### Added
 

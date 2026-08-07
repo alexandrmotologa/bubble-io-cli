@@ -38,7 +38,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v1.2.0 — Workflow Automation (Current)
+## ✅ v1.2.0 — Workflow Automation (Shipped)
 
 - [x] **`backup --json`** — Machine-readable JSON output (suppresses chalk/ora) for CI/CD scripts and GitHub Actions
 - [x] **`backup --watch --interval <seconds>`** — Continuously back up at a configurable interval with graceful Ctrl+C stop
@@ -47,12 +47,15 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## 🔜 v1.3.0 — Developer Experience
+## ✅ v1.3.0 — Developer Experience (Current)
 
-- [ ] **Interactive mode** (`bubble-io-cli interactive`) — guided TUI wizard for all commands
-- [ ] **Shell completions** — auto-generate Bash/Zsh/Fish tab completions
-- [ ] **Multi-app profiles** (`bubble-io-cli config --profile staging`) — manage credentials for multiple Bubble apps simultaneously
-- [ ] **Plugin system** — allow community-contributed commands via npm packages prefixed with `bubble-io-cli-plugin-*`
+- [x] **Multi-app profiles** (`bubble-io-cli config --profile staging`) — store and switch credentials for multiple Bubble apps
+  - `--list` to see all profiles with active indicator
+  - `--use <profile>` to switch the active profile
+  - `--clear --all` to wipe all profiles
+- [x] **Shell completions** (`bubble-io-cli completions`) — Bash, Zsh, and Fish tab-completion scripts
+  - Context-aware: suggests env values, format types, file paths, template names
+  - Install with: `source <(bubble-io-cli completions --bash)`
 
 ---
 
