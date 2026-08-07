@@ -7,6 +7,75 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.1.0] — 2026-08-07
+
+### Added
+
+#### `query` — Interactive REPL / Query Mode
+- `bubble-io-cli query` — Start a fully interactive terminal session for searching and browsing Bubble records
+- **Type selection menu** — Numbered list of all data types fetched live from the Meta API
+- **Quick text search** — Instant `text contains` filter on the first text field of the selected type
+- **Structured constraints** — Interactive field + operator + value selection with 7 supported operators: `equals`, `not equal`, `text contains`, `greater than`, `less than`, `is_empty`, `is_not_empty`
+- **Formatted table rendering** — Uses `cli-table3` to display records in aligned, color-coded columns with column priority (`_id` first, date fields last, auto-truncation at 30 chars)
+- **Pagination** — Next/Previous page navigation with cursor-based offset (`n` / `p` actions)
+- **Export** — `e` action exports the current page to a timestamped `query-export-<Type>-<timestamp>.json` file
+- **Filter management** — `x` to clear all filters, `r` to refine, `t` to change type
+- **Graceful exit** — `q` or `Ctrl+C` prints a goodbye message and exits cleanly
+- `--env <environment>` — Target `version-test` or `version-live`
+- `--profile <name>` — Named credential profile
+- `--page-size <n>` — Records per page (default: 20, max: 100)
+
+#### Core Infrastructure
+- `src/utils/table-renderer.ts` — Pure table rendering utility
+  - `buildTableHeaders()`, `renderTable()`, `truncateCell()`, `formatCellValue()` — all exported and tested
+- `src/utils/query-session.ts` — Immutable REPL session state machine
+  - `createSession()`, `buildConstraints()`, `paginationInfo()`, `applyPageResult()`, `resetFilters()`, `nextPage()`, `prevPage()`, `currentCursor()`
+
+#### Tests
+- 59 new unit tests (25 for `table-renderer`, 34 for `query-session`)
+- **Total: 186/186 tests passing** (11 test files)
+
+#### New Dependency
+- `cli-table3@^0.6.3` — Bordered terminal table renderer (includes built-in TypeScript types)
+
+---
+
+## [3.0.0] — 2026-08-07
+
+
+### Added
+
+#### `generate types` — TypeScript Interface Generator
+- `bubble-io-cli generate types` — Fetch the live Bubble schema and emit clean TypeScript interface definitions
+- Inspects all data types via the Bubble Meta API and maps each field to its TypeScript equivalent
+- **Full Bubble → TypeScript type mapping:**
+  - `text` → `string`, `number` → `number`, `boolean` → `boolean`
+  - `date` → `string` (ISO 8601 string, as returned by the Bubble Data API)
+  - `geographic address` → `BubbleGeographicAddress` (helper interface auto-emitted)
+  - `file`, `image`, `option` → `string`
+  - `list of text/number/date/boolean/file/image` → `string[]`, `number[]`, `string[]`, `boolean[]`, `string[]`, `string[]`
+  - `list of <CustomType>` → `string[]` (Bubble stores list-of-thing as ID arrays)
+  - Custom data type references → `string` (Bubble stores relationships as ID strings)
+- **System fields** automatically injected in every interface: `_id`, `Creation Date`, `Modified Date`
+- **All user-defined fields are optional** (`?`) — Bubble may omit unfilled fields in API responses
+- **Quoted property names** for fields with spaces: `'My Field'?: string` (valid TypeScript)
+- **JSDoc comments** on every field showing the original Bubble type, with "relationship → stored as Bubble ID" for reference fields
+- `--type <name>` — Generate only a single interface (case-insensitive match)
+- `--output <file>` — Write to a `.d.ts` / `.ts` file; omit for stdout preview
+- `--env <environment>` — Target environment (default: `version-test`)
+- `--profile <name>` — Named profile support
+
+#### Core Infrastructure
+- `src/utils/type-generator.ts` — New pure utility: `bubbleTypeToTs()`, `generateInterface()`, `generateTypeFile()`
+  - Zero side-effects, fully deterministic output
+  - Exports `BUBBLE_TYPE_MAP` constant for reuse and testing
+
+#### Tests
+- 38 new unit tests for `type-generator.ts`
+- **Total: 127/127 tests passing**
+
+---
+
 ## [2.1.0] — 2026-08-07
 
 ### Added
