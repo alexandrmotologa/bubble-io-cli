@@ -2,7 +2,11 @@ import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
 import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { writeFile } from 'fs/promises';
 import { join } from 'path';
+import { storage } from '../utils/storage.js';
+import { BubbleMetaClient } from '../services/bubble-meta.js';
+import { generateTypeFile } from '../utils/type-generator.js';
 
 /**
  * Available code generation templates for Bubble plugin integrations.
@@ -34,22 +38,27 @@ const TEMPLATES: Record<TemplateType, TemplateOption> = {
 };
 
 /**
- * Registers the `generate` sub-command.
+ * Registers the `generate` command group with its sub-commands.
  *
- * Usage:
+ * Usage (templates):
  *   bubble-io-cli generate --template plugin-action --name MyAction
  *   bubble-io-cli generate --template api-connector --name Product
  *   bubble-io-cli generate --list
+ *
+ * Usage (type generation):
+ *   bubble-io-cli generate types --output ./bubble-types.d.ts
+ *   bubble-io-cli generate types --type Product --output ./src/types/product.d.ts
+ *   bubble-io-cli generate types --type Order   (preview to stdout)
  */
 export function registerGenerateCommand(program: Command): void {
-  program
+  const generate = program
     .command('generate')
     .alias('g')
-    .description('Scaffold integration templates for Bubble plugins and API connectors')
+    .description('Scaffold templates or generate TypeScript types from your Bubble schema')
     .option('-t, --template <type>', 'Template type: plugin-action | api-connector | data-trigger')
     .option('-n, --name <name>', 'Name for the generated entity (e.g. Product, MyAction)')
-    .option('-o, --output <dir>', 'Output directory', './generated')
-    .option('--list', 'List all available templates')
+    .option('-o, --output <dir>', 'Output directory for scaffold templates', './generated')
+    .option('--list', 'List all available scaffold templates')
     .action((options: { template?: string; name?: string; output: string; list?: boolean }) => {
       // ── List templates ───────────────────────────────────────────────────────
       if (options.list) {
@@ -66,7 +75,8 @@ export function registerGenerateCommand(program: Command): void {
         console.error(
           chalk.red('❌ Both --template and --name are required.\n') +
           chalk.dim('   Example: bubble-io-cli generate --template plugin-action --name MyAction\n') +
-          chalk.dim('   Or list templates with: bubble-io-cli generate --list')
+          chalk.dim('   Or list templates with: bubble-io-cli generate --list\n') +
+          chalk.dim('   Or generate TypeScript types with: bubble-io-cli generate types')
         );
         process.exit(1);
       }
@@ -98,6 +108,104 @@ export function registerGenerateCommand(program: Command): void {
         spinner.fail(chalk.red('Generation failed'));
         const message = error instanceof Error ? error.message : String(error);
         console.error(chalk.red(`\n❌ ${message}\n`));
+        process.exit(1);
+      }
+    });
+
+  // ── generate types ─────────────────────────────────────────────────────────
+  generate
+    .command('types')
+    .description('Generate TypeScript interface definitions from your Bubble schema')
+    .option('-e, --env <environment>', 'Target environment', 'version-test')
+    .option('-p, --profile <name>', 'Profile to use for credentials')
+    .option('-t, --type <name>', 'Generate only the interface for this data type')
+    .option('-o, --output <file>', 'Save the generated types to a file (default: print to stdout)')
+    .action(async (options: {
+      env: string;
+      profile?: string;
+      type?: string;
+      output?: string;
+    }) => {
+      const config = storage.getConfig(options.profile);
+      if (!config) {
+        console.error(
+          chalk.red('❌ No credentials configured.\n') +
+          chalk.dim('   Run: bubble-io-cli config --app <name> --key <key>')
+        );
+        process.exit(1);
+      }
+
+      const spinner = ora({ text: 'Fetching schema from Bubble Meta API…', color: 'cyan' }).start();
+
+      try {
+        const meta = new BubbleMetaClient(config.appName, config.apiKey, options.env);
+        let types = await meta.getDataTypes();
+
+        // ── Validate --type filter ────────────────────────────────────────────
+        if (options.type) {
+          const lower = options.type.toLowerCase();
+          const matched = types.filter(
+            (t) => t.display.toLowerCase() === lower || t.id.toLowerCase() === lower
+          );
+          if (matched.length === 0) {
+            spinner.fail(chalk.red(`Data type "${options.type}" not found.`));
+            console.error(
+              chalk.dim(`\n   Available types: ${types.map((t) => t.display).join(', ')}\n`)
+            );
+            process.exit(1);
+          }
+        }
+
+        spinner.succeed(
+          chalk.green(
+            `Fetched ${types.length} data type(s) — generating TypeScript interfaces…`
+          )
+        );
+
+        const content = generateTypeFile(types, {
+          singleType: options.type,
+          appName: config.appName,
+          env: options.env,
+        });
+
+        const typeCount = options.type ? 1 : types.length;
+
+        if (options.output) {
+          // ── Write to file ─────────────────────────────────────────────────
+          await writeFile(options.output, content, 'utf-8');
+          console.log(
+            chalk.green(`\n✅ Generated ${chalk.bold(String(typeCount))} interface(s) → `) +
+            chalk.cyan(options.output)
+          );
+          console.log(chalk.dim(`   App:  ${config.appName}`));
+          console.log(chalk.dim(`   Env:  ${options.env}`));
+          if (options.type) {
+            console.log(chalk.dim(`   Type: ${options.type}`));
+          }
+          console.log();
+        } else {
+          // ── Print to stdout ───────────────────────────────────────────────
+          console.log(
+            chalk.cyan(
+              `\n🔷 TypeScript interfaces — ${chalk.bold(config.appName)} [${options.env}]\n`
+            )
+          );
+          console.log(content);
+          console.log(
+            chalk.dim(`   Tip: save to a file with --output <path.d.ts>\n`)
+          );
+        }
+      } catch (error: unknown) {
+        spinner.fail(chalk.red('Type generation failed'));
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(chalk.red(`\n❌ ${message}\n`));
+        if (message.includes('403')) {
+          console.error(
+            chalk.dim(
+              '   → Enable the Meta API in your Bubble app: Settings → API → Enable Data API & check "Expose schema"\n'
+            )
+          );
+        }
         process.exit(1);
       }
     });

@@ -31,6 +31,9 @@ This document describes the internal structure, design decisions, and command fl
 │   src/utils/notifications.ts  — Slack + Discord webhooks        │
 │   src/utils/schema-diff.ts    — Schema diffing engine           │
 │   src/utils/schema-erd.ts     — ERD generation engine           │
+│   src/utils/type-generator.ts — TypeScript interface generator  │
+│   src/utils/table-renderer.ts — cli-table3 table renderer       │
+│   src/utils/query-session.ts  — REPL session state machine      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -61,7 +64,8 @@ Each file in `src/commands/` maps to one CLI sub-command (or sub-command group) 
 | `seed.ts` | `seed` | `bubble-api.ts` |
 | `mock.ts` | `mock` | `express` |
 | `plugin.ts` | `plugin list`, `plugin get`, `plugin deploy` | `bubble-plugin.ts` |
-| `generate.ts` | `generate` | — |
+| `generate.ts` | `generate` (templates), `generate types` | `bubble-meta.ts`, `type-generator.ts` |
+| `query.ts` | `query` | `bubble-api.ts`, `bubble-meta.ts`, `table-renderer.ts`, `query-session.ts` |
 | `completions.ts` | `completions` | — |
 
 ---
@@ -141,6 +145,72 @@ Express HTTP Server         ← Listens on --port (default 3333)
     │
     ▼
 SIGINT (Ctrl+C)            ← Graceful shutdown
+```
+
+---
+
+### Command Flow: `bubble-io-cli generate types --output ./bubble-types.d.ts`
+
+```
+User Terminal
+    │
+    ▼
+src/commands/generate.ts  ← Reads config via storage.getConfig()
+    │                        Validates --type filter (if provided)
+    │                        Starts ora spinner
+    ▼
+src/services/bubble-meta.ts ← GET /meta/types (fetches all data type definitions)
+    │
+    ▼
+src/utils/type-generator.ts ← bubbleTypeToTs() resolves each field type
+    │                          generateInterface() builds one interface block
+    │                          generateTypeFile() assembles the full .d.ts content
+    │
+    ▼
+src/commands/generate.ts  ← Writes content to --output file (or prints to stdout)
+    │
+    ▼
+File system               ← bubble-types.d.ts written
+    │
+    ▼
+User Terminal             ← ✅ Generated N interface(s) → ./bubble-types.d.ts
+```
+
+---
+
+### Command Flow: `bubble-io-cli query`
+
+```
+User Terminal
+    │
+    ▼
+src/commands/query.ts     ← Reads config via storage.getConfig()
+    │                        Creates readline.Interface on stdin/stdout
+    ▼
+src/services/bubble-meta.ts ← GET /meta/types (schema for type menu + field list)
+    │
+    ▼
+src/commands/query.ts     ← Displays numbered type selection menu
+    │                        [REPL LOOP]
+    │  ┌─ promptFilterMenu() → text search / constraint / clear / change type
+    │  │
+    │  ▼
+src/services/bubble-api.ts ← GET /obj/<type>?cursor=<offset>&limit=<pageSize>
+    │                          (with optional constraints parameter)
+    │
+    ▼
+src/utils/query-session.ts ← applyPageResult() updates session immutably
+    │                         paginationInfo() derives page/totalPages/showing
+    │
+    ▼
+src/utils/table-renderer.ts ← buildTableHeaders() derives column order
+    │                          renderTable() renders cli-table3 table
+    │
+    ▼
+User Terminal              ← Table printed, action menu shown (n/p/r/t/e/q)
+    │  └─ Loop or exit based on user action
+    ▼
+  exit / Ctrl+C            ← rl.close() → "Goodbye!" → process.exit(0)
 ```
 
 ---
@@ -291,7 +361,54 @@ Pure TypeScript generator for Mermaid.js ER diagrams. No external dependencies.
 
 ---
 
+### `type-generator.ts`
+
+Pure TypeScript generator for `.d.ts` interface files. No external dependencies, zero side-effects.
+
+| Export | Description |
+|---|---|
+| `BUBBLE_TYPE_MAP` | Record mapping Bubble primitive types to TypeScript equivalents |
+| `bubbleTypeToTs(fieldType, knownTypes)` | Resolve a single Bubble field type to its TypeScript string |
+| `generateInterface(type, knownTypes)` | Generate one `export interface` block with system + user fields |
+| `generateTypeFile(types, options)` | Generate the full `.d.ts` file content (header + helper types + interfaces) |
+
+---
+
+
+### `table-renderer.ts`
+
+Pure terminal table renderer built on `cli-table3`. No I/O, fully deterministic and testable.
+
+| Export | Description |
+|---|---|
+| `formatCellValue(value)` | Safely stringify any Bubble field value (null, arrays, objects, primitives) |
+| `truncateCell(value, maxWidth?)` | Truncate a string with ellipsis when it exceeds `maxWidth` (default: 30) |
+| `buildTableHeaders(records, maxColumns?)` | Derive ordered column names: `_id` first, user fields middle, date fields last |
+| `renderTable(records, options?)` | Render a bordered `cli-table3` table as a ready-to-print string |
+
+Column priority order: `_id` → user-defined fields (schema order) → `Creation Date` → `Modified Date`.
+
+---
+
+### `query-session.ts`
+
+Immutable REPL session state machine. Every function returns a new session object — nothing is mutated.
+
+| Export | Description |
+|---|---|
+| `createSession(dataType, env, pageSize?)` | Initialise a fresh session with defaults (page 1, no filters) |
+| `buildConstraints(session, textFieldId?)` | Convert session filters to `BubbleConstraint[]` for the API |
+| `paginationInfo(session)` | Derive `{ page, totalPages, showing, total }` for display |
+| `applyPageResult(session, records, total)` | Return a new session with updated records + totalRecords |
+| `resetFilters(session)` | Return a new session with all filters cleared and page reset to 1 |
+| `nextPage(session)` | Increment page, clamped to `totalPages` |
+| `prevPage(session)` | Decrement page, clamped to 1 |
+| `currentCursor(session)` | Calculate the 0-based API cursor offset for the current page |
+
+---
+
 ## Build System
+
 
 | Tool | Purpose |
 |---|---|

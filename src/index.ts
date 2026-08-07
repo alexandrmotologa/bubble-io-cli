@@ -14,6 +14,7 @@ import { registerWorkflowCommand } from './commands/workflow.js';
 import { registerSeedCommand } from './commands/seed.js';
 import { registerMockCommand } from './commands/mock.js';
 import { registerPluginCommand } from './commands/plugin.js';
+import { registerQueryCommand } from './commands/query.js';
 
 const program = new Command();
 
@@ -23,7 +24,7 @@ program
     chalk.cyan('🫧  bubble-io-cli') +
     chalk.dim(' — A developer CLI for managing and interacting with Bubble.io applications')
   )
-  .version('2.1.0', '-v, --version', 'Output the current version')
+  .version('3.1.0', '-v, --version', 'Output the current version')
   .helpOption('-h, --help', 'Display help for command');
 
 // Register all sub-commands
@@ -39,6 +40,7 @@ registerWorkflowCommand(program);
 registerSeedCommand(program);
 registerMockCommand(program);
 registerPluginCommand(program);
+registerQueryCommand(program);
 
 // Show help if no command provided
 if (process.argv.length <= 2) {

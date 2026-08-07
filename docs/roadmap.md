@@ -79,7 +79,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v2.1.0 — Community Features (Current)
+## ✅ v2.1.0 — Community Features (Shipped)
 
 - [x] **Slack / Discord notification hooks** (`--notify-slack <url>` / `--notify-discord <url>`) on backup completion
   - Rich Block Kit format for Slack, Embeds with color status for Discord
@@ -100,6 +100,44 @@ This document outlines the planned features and improvements for future versions
   - List, inspect, and deploy Bubble plugins via the Plugin Editor API
   - `--dry-run` for safe deploy preview
   - Reads token from `BUBBLE_PLUGIN_TOKEN` env var
+
+---
+
+## ✅ v3.0.0 — TypeScript Type Safety (Current)
+
+- [x] **`generate types` command** — Automatically generate TypeScript interfaces from your live Bubble schema
+  - Fetches data types via the Bubble Meta API and maps each field to its TypeScript equivalent
+  - **Full type mapping:** `text` → `string`, `number` → `number`, `boolean` → `boolean`, `date` → `string`, `geographic address` → `BubbleGeographicAddress`, `file`/`image`/`option` → `string`, list variants → `T[]`, relationship fields → `string` (ID)
+  - **System fields** (`_id`, `Creation Date`, `Modified Date`) injected automatically in every interface
+  - **All user-defined fields are optional** (`?`) — matches Bubble API behaviour
+  - **Quoted property names** for fields with spaces (`'My Field'?: string`)
+  - **JSDoc** comments on every field showing the original Bubble type and relationship annotation
+  - `--type <name>` — single interface mode (case-insensitive)
+  - `--output <file>` — write to `.d.ts` / `.ts` file; omit for stdout preview
+  - `--env <environment>` — target environment support
+  - `--profile <name>` — multi-profile support
+- [x] `src/utils/type-generator.ts` — New pure, dependency-free utility module
+  - `bubbleTypeToTs()`, `generateInterface()`, `generateTypeFile()` — all exported and fully tested
+  - 38 new unit tests → **127 total tests passing**
+
+---
+
+## ✅ v3.1.0 — Interactive REPL / Query Mode (Current)
+
+- [x] **`query` command** — Fully interactive terminal session for searching and browsing Bubble records
+  - **Type selection menu** — Numbered list of all data types fetched live from the Meta API
+  - **Quick text search** — Instant `text contains` filter on the first text field of the selected type
+  - **Structured constraints** — Interactive field + operator + value selection (7 operators: `equals`, `not equal`, `text contains`, `greater than`, `less than`, `is_empty`, `is_not_empty`)
+  - **Formatted table rendering** — `cli-table3` with column priority (`_id` first, date fields last), auto-truncation at 30 chars
+  - **Pagination** — Next/Previous page navigation with cursor-based offset (`n` / `p`)
+  - **Export** — `e` action writes current page to a timestamped JSON file
+  - **Filter management** — `x` to clear, `r` to refine, `t` to change type
+  - **Graceful exit** — `q` or `Ctrl+C` exits cleanly
+  - `--env`, `--profile`, `--page-size` options
+- [x] `src/utils/table-renderer.ts` — Pure table rendering utility (`buildTableHeaders`, `renderTable`, `truncateCell`, `formatCellValue`)
+- [x] `src/utils/query-session.ts` — Immutable REPL state machine (`createSession`, `buildConstraints`, `paginationInfo`, `applyPageResult`, `resetFilters`, `nextPage`, `prevPage`, `currentCursor`)
+- [x] `cli-table3@^0.6.3` — Only new production dependency (includes built-in TypeScript types)
+- [x] 59 new unit tests → **186 total tests passing** (11 test files)
 
 ---
 
