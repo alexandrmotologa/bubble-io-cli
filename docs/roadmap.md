@@ -141,4 +141,25 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
+## ✅ v3.2.0 — PII & Privacy Security Audit (Current)
+
+- [x] **`audit privacy` command** — Scan Bubble schema or local backup files for exposed PII and privacy risks
+  - **Dual scan modes**: Remote schema (live Meta API) + local backup JSON file (`--file`)
+  - **8 detection categories**: Credentials (CRITICAL), Financial (CRITICAL), Government IDs (HIGH), Biometric (HIGH), Contact PII (HIGH), Medical (HIGH), Geolocation (MEDIUM), Demographics (MEDIUM)
+  - **Case-insensitive + compound matching** — `EMAIL`, `user_Email_Address`, `customer_email` all detected
+  - **First-match-wins deduplication** — one finding per field, highest risk wins, no noise
+  - **Rich terminal report** — color-coded findings with reasons and Bubble Privacy Rule recommendations
+  - **CI exit code** — exits with code `1` on CRITICAL findings (usable in GitHub Actions security gates)
+  - `--file <path>` — local backup scan mode
+  - `--env <env>` — target environment (remote mode)
+  - `--type <name>` — single data type filter
+  - `--min-risk MEDIUM|HIGH|CRITICAL` — severity threshold (default: `MEDIUM`)
+  - `--json` — machine-readable output for automated pipelines
+  - `--profile <name>` — multi-profile support
+- [x] `src/utils/pii-scanner.ts` — Pure deterministic engine (`scanTypes`, `scanSchema`, `scanBackupFile`, `PII_PATTERNS`)
+- [x] **Infrastructure**: Vitest upgraded to `^4.0.0` for Node.js v24 compatibility; `vitest.config.mjs` created
+- [x] 40 new unit tests → **226 total tests passing** (12 test files)
+
+---
+
 > 💬 **Have an idea?** [Open a feature request](https://github.com/alexandrmotologa/bubble-io-cli/issues/new?template=feature_request.md) — we'd love to hear from you!
