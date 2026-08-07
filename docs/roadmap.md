@@ -17,7 +17,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v1.0.1 — Record Limit (Current)
+## ✅ v1.0.1 — Record Limit (Shipped)
 
 - [x] **`backup --limit <number>` / `-l`** — Optional cap on records fetched per export
   - Smart page-size trimming: `--limit 25` sends `?limit=25` to the API (no over-fetching)
@@ -28,13 +28,13 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## 🔜 v1.1.0 — Data Enhancements
+## ✅ v1.1.0 — Data Enhancements (Current)
 
-- [ ] **Restore command** (`bubble-io-cli restore --file backup-user-*.json`) — bulk-upload records back to Bubble via the Data API
-- [ ] **Diff command** (`bubble-io-cli diff --type Product`) — compare remote data against a local backup and show what changed
-- [ ] **Backup filtering** — add `--constraint` option to filter exported records (wraps Bubble's `constraints` query parameter)
-- [ ] **CSV export** — add `--format csv` option to the backup command for spreadsheet-friendly output
-- [ ] **Incremental backups** — track `Modified_Date` to export only records changed since the last backup
+- [x] **Restore command** (`bubble-io-cli restore --file backup-user-*.json`) — bulk-upload records back to Bubble via the Data API
+- [x] **Diff command** (`bubble-io-cli diff --type Product`) — compare remote data against a local backup and show what changed
+- [x] **Backup filtering** — `--constraint` option for server-side filtering (wraps Bubble's `constraints` query parameter)
+- [x] **CSV export** — `--format csv` option for spreadsheet-friendly output
+- [x] **Incremental backups** — `--since <date>` option tracks `Modified Date` to export only recently changed records
 
 ---
 

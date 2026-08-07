@@ -19,8 +19,38 @@ export interface FetchResult<T> {
 }
 
 /**
+ * Bubble API constraint object for server-side filtering.
+ * @see https://manual.bubble.io/core-resources/api/the-bubble-api#search-constraints
+ */
+export interface BubbleConstraint {
+  key: string;
+  constraint_type:
+    | 'equals'
+    | 'not equal'
+    | 'is_empty'
+    | 'is_not_empty'
+    | 'text contains'
+    | 'not text contains'
+    | 'greater than'
+    | 'less than'
+    | 'in'
+    | 'not in'
+    | 'contains'
+    | 'not contains'
+    | 'geographic_search';
+  value?: unknown;
+}
+
+/**
+ * Result of a record creation call.
+ */
+export interface CreateResult {
+  id: string;
+}
+
+/**
  * Client for the Bubble.io Data API.
- * Handles authentication, pagination (cursor-based), and error normalisation.
+ * Handles authentication, pagination (cursor-based), filtering, and error normalisation.
  */
 export class BubbleApiClient {
   private readonly client: AxiosInstance;
@@ -63,33 +93,39 @@ export class BubbleApiClient {
    * Fetch records for a given data type, automatically following
    * Bubble's cursor-based pagination until all records are retrieved.
    *
-   * @param typeName   - The Bubble data type (e.g. 'User', 'Product')
-   * @param maxRecords - Optional cap on the total number of records to fetch.
-   *                     When omitted, all records are fetched (full pagination).
-   *                     When provided, fetching stops as soon as this count is reached.
+   * @param typeName    - The Bubble data type (e.g. 'User', 'Product')
+   * @param maxRecords  - Optional cap on the total number of records to fetch.
+   *                      When omitted, all records are fetched (full pagination).
+   * @param constraints - Optional array of server-side filter constraints.
    */
   async getAllRecords<T = Record<string, unknown>>(
     typeName: string,
-    maxRecords?: number
+    maxRecords?: number,
+    constraints?: BubbleConstraint[]
   ): Promise<FetchResult<T>> {
     const allResults: T[] = [];
     let cursor = 0;
     const pageSize = 100;
 
+    const constraintsParam =
+      constraints && constraints.length > 0 ? JSON.stringify(constraints) : undefined;
+
     do {
-      // When a limit is set, only request up to the remaining quota per page
       const remaining_quota = maxRecords !== undefined ? maxRecords - allResults.length : pageSize;
       const limit = Math.min(pageSize, remaining_quota);
 
       const response = await this.client.get<{ response: BubbleApiResponse<T> }>(`/${typeName}`, {
-        params: { cursor, limit },
+        params: {
+          cursor,
+          limit,
+          ...(constraintsParam && { constraints: constraintsParam }),
+        },
       });
 
       const { results, remaining } = response.data.response;
       allResults.push(...results);
       cursor += results.length;
 
-      // Stop if no more pages, or if we've reached the requested cap
       if (remaining === 0) break;
       if (maxRecords !== undefined && allResults.length >= maxRecords) break;
     } while (true);
@@ -106,12 +142,50 @@ export class BubbleApiClient {
   async getDataType<T = Record<string, unknown>>(
     typeName: string,
     cursor: number = 0,
-    limit: number = 100
+    limit: number = 100,
+    constraints?: BubbleConstraint[]
   ): Promise<BubbleApiResponse<T>> {
+    const constraintsParam =
+      constraints && constraints.length > 0 ? JSON.stringify(constraints) : undefined;
+
     const response = await this.client.get<{ response: BubbleApiResponse<T> }>(`/${typeName}`, {
-      params: { cursor, limit },
+      params: {
+        cursor,
+        limit,
+        ...(constraintsParam && { constraints: constraintsParam }),
+      },
     });
     return response.data.response;
+  }
+
+  /**
+   * Create a new record of the given data type.
+   * Returns the newly created record's Bubble ID.
+   */
+  async createRecord(
+    typeName: string,
+    data: Record<string, unknown>
+  ): Promise<CreateResult> {
+    const response = await this.client.post<{ id: string }>(`/${typeName}`, data);
+    return { id: response.data.id };
+  }
+
+  /**
+   * Update (PATCH) an existing record by its Bubble ID.
+   */
+  async updateRecord(
+    typeName: string,
+    id: string,
+    data: Record<string, unknown>
+  ): Promise<void> {
+    await this.client.patch(`/${typeName}/${id}`, data);
+  }
+
+  /**
+   * Delete an existing record by its Bubble ID.
+   */
+  async deleteRecord(typeName: string, id: string): Promise<void> {
+    await this.client.delete(`/${typeName}/${id}`);
   }
 
   /**
