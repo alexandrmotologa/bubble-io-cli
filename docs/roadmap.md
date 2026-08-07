@@ -28,7 +28,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v1.1.0 — Data Enhancements (Current)
+## ✅ v1.1.0 — Data Enhancements (Shipped)
 
 - [x] **Restore command** (`bubble-io-cli restore --file backup-user-*.json`) — bulk-upload records back to Bubble via the Data API
 - [x] **Diff command** (`bubble-io-cli diff --type Product`) — compare remote data against a local backup and show what changed
@@ -38,12 +38,12 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## 🔜 v1.2.0 — Workflow Automation
+## ✅ v1.2.0 — Workflow Automation (Current)
 
-- [ ] **Watch mode** (`bubble-io-cli backup --watch --interval 60`) — continuously back up data at a specified interval
-- [ ] **CI/CD integration** — structured JSON output (`--json` flag) and proper exit codes for scripting in GitHub Actions, GitLab CI, etc.
-- [ ] **S3 / GCS upload** — `--destination s3://my-bucket/backups` to upload exports directly to cloud storage
-- [ ] **Encryption** — optional AES-256 encryption for local backup files with `--encrypt`
+- [x] **`backup --json`** — Machine-readable JSON output (suppresses chalk/ora) for CI/CD scripts and GitHub Actions
+- [x] **`backup --watch --interval <seconds>`** — Continuously back up at a configurable interval with graceful Ctrl+C stop
+- [x] **`backup --destination s3://` / `gs://`** — Upload exports directly to Amazon S3 or Google Cloud Storage (lazy-loaded SDKs)
+- [x] **`backup --encrypt`** — AES-256-GCM encryption for local backup files (passphrase via `BUBBLE_BACKUP_PASSPHRASE` env var)
 
 ---
 
