@@ -7,7 +7,55 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [2.1.0] — 2026-08-07
+
+### Added
+
+#### Slack / Discord Notification Hooks (`backup --notify-slack` / `--notify-discord`)
+- `--notify-slack <webhookUrl>` — Send a Slack Incoming Webhook notification on backup completion
+  - Rich Block Kit format with app, type, env, records, file, and duration fields
+- `--notify-discord <webhookUrl>` — Send a Discord Webhook notification
+  - Color-coded Embed (green=success, red=failure)
+- `--notify-on-error` — Also notify when backup fails (default: success only)
+- Uses Node.js built-in `https`/`http` modules — zero extra dependencies
+- `src/utils/notifications.ts` — `sendSlackNotification`, `sendDiscordNotification`, `dispatchNotifications`
+
+#### `schema diff` Sub-Command
+- `bubble-io-cli schema diff` — Compare schema between two Bubble environments
+- Fetches both environments in parallel for speed
+- Color-coded output: `+` green (added), `-` red (removed), `~` yellow (changed)
+- Reports: new data types, removed types, field additions, removals, and type changes
+- `--json` for CI environment comparison pipelines
+- `src/utils/schema-diff.ts` — `diffSchemas()` pure diff engine
+
+#### `mock` Command — Local Mock Server
+- `bubble-io-cli mock --file backup.json --port 3333`
+- Starts an Express HTTP server compatible with the Bubble Data API format
+- Supports full CRUD: `GET /api/1.1/obj/:type`, `GET /:id`, `POST`, `PATCH`, `DELETE`
+- Cursor + limit pagination matching Bubble's response envelope
+- `--cors` flag for browser-based integration testing
+- `--file Type=path` syntax for loading multiple data types
+- `/health` endpoint returning store status (types and record counts)
+- Graceful `SIGINT`/`SIGTERM` shutdown
+
+#### `plugin` Command Group — Plugin Editor API
+- `bubble-io-cli plugin list` — List all plugins for the current Bubble app
+- `bubble-io-cli plugin get <pluginId>` — Get full definition of a plugin
+- `bubble-io-cli plugin deploy --file plugin.json` — Create or update a plugin
+  - `--id <pluginId>` to update an existing plugin
+  - `--dry-run` to validate and preview without API calls
+- Reads token from `BUBBLE_PLUGIN_TOKEN` env var
+- `src/services/bubble-plugin.ts` — `BubblePluginClient` with `listPlugins`, `getPlugin`, `deployPlugin`
+
+#### Tests
+- 8 new unit tests for `schema-diff.ts`
+- 7 new unit tests for `notifications.ts`
+- **Total: 68/68 tests passing**
+
+---
+
 ## [2.0.0] — 2026-08-07
+
 
 ### Added
 
