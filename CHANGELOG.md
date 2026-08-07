@@ -7,7 +7,56 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [1.1.0] — 2026-08-07
+
+### Added
+
+#### Commands
+- **`bubble-io-cli restore`** — Bulk-upload records from a backup JSON file back to Bubble
+  - `--file <path>` — Path to the backup JSON file (**required**)
+  - `--mode create|upsert` — Create new records only, or create + update by `_id` (default: `create`)
+  - `--env <environment>` — Target environment
+  - `--type <datatype>` — Override the data type from the backup file
+  - `--concurrency <number>` — Number of parallel API requests (default: 5, max: 20)
+  - `--dry-run` — Simulate the restore without making any API calls
+  - Strips read-only Bubble fields (`_id`, `Created Date`, `Modified Date`) before writing
+  - Progress spinner with per-record counter and error summary
+
+- **`bubble-io-cli diff`** — Compare live Bubble data against a local backup
+  - `--file <path>` — Local backup file to compare against (**required**)
+  - `--type <datatype>` — Override the data type
+  - `--env <environment>` — Target environment
+  - `--fields <list>` — Comma-separated field names to compare (default: all non-timestamp fields)
+  - `--summary` — Show only counts, not full record details
+  - Reports added, removed, and modified records with field-level `old → new` values
+
+#### Backup Enhancements
+- **`--format <type>` / `-f`** — Output format: `json` (default) or `csv`
+  - CSV output uses RFC 4180 escaping and dot-notation flattening for nested fields
+  - Header row is built from the union of all field names across all records
+- **`--constraint <json>` / `-c`** — Server-side filtering using Bubble's `constraints` query parameter
+  - Accepts a JSON array of constraint objects: `[{"key":"status","constraint_type":"equals","value":"active"}]`
+- **`--since <date>`** — Export only records modified after a given ISO 8601 date
+  - Automatically adds a `Modified Date > <date>` constraint to the API request
+  - `since` field included in the backup JSON `meta` envelope
+
+#### Core Infrastructure
+- **`BubbleApiClient.createRecord(type, data)`** — POST a new record to the Bubble Data API
+- **`BubbleApiClient.updateRecord(type, id, data)`** — PATCH an existing record by ID
+- **`BubbleApiClient.deleteRecord(type, id)`** — DELETE a record by ID
+- **`BubbleApiClient.getAllRecords()`** now accepts an optional `constraints` parameter
+- **`BubbleApiClient.getDataType()`** now accepts an optional `constraints` parameter
+- **`src/utils/csv.ts`** — New CSV utility: `flattenRecord()` + `jsonToCsv()`
+
+#### Tests
+- 15 new unit tests for `csv.ts` (`flattenRecord` + `jsonToCsv`)
+- 5 new unit tests for CRUD methods and constraint passing in `BubbleApiClient`
+- **Total: 40/40 tests passing**
+
+---
+
 ## [1.0.1] — 2026-08-07
+
 
 ### Added
 - **`backup --limit <number>` / `-l`** — Optional cap on the number of records fetched.
