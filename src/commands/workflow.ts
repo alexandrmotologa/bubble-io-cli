@@ -1,6 +1,8 @@
 import { Command } from 'commander';
 import chalk from 'chalk';
 import ora from 'ora';
+import fs from 'fs/promises';
+import path from 'path';
 import { storage } from '../utils/storage.js';
 import { BubbleApiClient } from '../services/bubble-api.js';
 
@@ -51,7 +53,19 @@ export function registerWorkflowCommand(program: Command): void {
       let payload: Record<string, unknown> = {};
       if (options.data) {
         try {
-          payload = JSON.parse(options.data) as Record<string, unknown>;
+          let jsonString = options.data;
+          
+          // Support reading from a file if the value starts with @
+          if (jsonString.startsWith('@')) {
+            const filePath = jsonString.slice(1);
+            try {
+              jsonString = await fs.readFile(path.resolve(process.cwd(), filePath), 'utf-8');
+            } catch (fileErr) {
+              throw new Error(`Failed to read file ${filePath}: ${fileErr instanceof Error ? fileErr.message : String(fileErr)}`);
+            }
+          }
+
+          payload = JSON.parse(jsonString) as Record<string, unknown>;
           if (typeof payload !== 'object' || Array.isArray(payload)) throw new Error('Must be a JSON object');
         } catch (e) {
           const msg = `Invalid --data JSON: ${e instanceof Error ? e.message : String(e)}`;
