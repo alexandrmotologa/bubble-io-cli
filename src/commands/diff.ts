@@ -46,12 +46,16 @@ export function registerDiffCommand(program: Command): void {
     .option('-e, --env <environment>', 'Target environment: version-test or version-live', 'version-test')
     .option('--fields <list>', 'Comma-separated list of fields to compare (default: all fields)')
     .option('--summary', 'Show only the counts, not the full record details')
+    .option('--limit <number>', 'Limit the number of records fetched from Bubble', parseInt)
+    .option('--local-only', 'Compare only records present in the local backup file')
     .action(async (options: {
       file: string;
       type?: string;
       env: string;
       fields?: string;
       summary?: boolean;
+      limit?: number;
+      localOnly?: boolean;
     }) => {
       // ── Validate stored config ───────────────────────────────────────────────
       const config = storage.getConfig();
@@ -93,10 +97,29 @@ export function registerDiffCommand(program: Command): void {
       const compareFields = options.fields?.split(',').map((f) => f.trim());
       const { appName, apiKey } = config;
 
+      // ── Validate mutually exclusive options ─────────────────────────────────
+      if (options.localOnly && options.limit !== undefined) {
+        console.error(chalk.red('❌ --local-only and --limit cannot be used together.'));
+        process.exit(1);
+      }
+      if (options.limit !== undefined && (isNaN(options.limit) || options.limit < 1)) {
+        console.error(chalk.red('❌ --limit must be a positive integer.'));
+        process.exit(1);
+      }
+
       console.log(
         chalk.cyan(`\n🔍 Comparing ${chalk.bold(dataType)} — `) +
         chalk.dim(`local: ${backupFile.meta.exportedAt}\n`)
       );
+
+      if (options.localOnly) {
+        console.log(
+          chalk.dim('  ℹ  Mode: --local-only (fetching only the backed-up record IDs)') + '\n' +
+          chalk.dim('     Note: newly added records in Bubble will NOT be detected.') + '\n'
+        );
+      } else if (options.limit !== undefined) {
+        console.log(chalk.dim(`  ℹ  Mode: limited fetch (max ${options.limit} records from remote)\n`));
+      }
 
       const spinner = ora({
         text: `Fetching current remote data from ${chalk.bold(dataType)}…`,
@@ -105,11 +128,41 @@ export function registerDiffCommand(program: Command): void {
 
       // ── Fetch remote records ─────────────────────────────────────────────────
       let remoteRecords: Record<string, unknown>[];
+      const client = new BubbleApiClient(appName, apiKey, options.env);
+
       try {
-        const client = new BubbleApiClient(appName, apiKey, options.env);
-        const result = await client.getAllRecords<Record<string, unknown>>(dataType);
-        remoteRecords = result.results;
-        spinner.succeed(chalk.green(`Fetched ${result.totalFetched} remote records`));
+        if (options.localOnly) {
+          // Smart fetch: only query the specific IDs present in the backup file.
+          // Chunked into groups of 50 to avoid URL length limits.
+          const localIds = backupFile.data
+            .map((r) => r['_id'] as string | undefined)
+            .filter((id): id is string => !!id);
+
+          if (localIds.length === 0) {
+            spinner.fail(chalk.red('No valid record IDs found in the backup file.'));
+            process.exit(1);
+          }
+
+          const CHUNK_SIZE = 50;
+          remoteRecords = [];
+          for (let i = 0; i < localIds.length; i += CHUNK_SIZE) {
+            const chunk = localIds.slice(i, i + CHUNK_SIZE);
+            const chunkResult = await client.getAllRecords<Record<string, unknown>>(dataType, undefined, [
+              { key: '_id', constraint_type: 'in', value: chunk },
+            ]);
+            remoteRecords.push(...chunkResult.results);
+          }
+
+          spinner.succeed(
+            chalk.green(`Fetched ${remoteRecords.length} of ${localIds.length} backed-up records from remote`)
+          );
+        } else {
+          // Full paginated fetch, optionally capped by --limit.
+          const result = await client.getAllRecords<Record<string, unknown>>(dataType, options.limit);
+          remoteRecords = result.results;
+          const limitNote = options.limit !== undefined ? ` (limit: ${options.limit})` : '';
+          spinner.succeed(chalk.green(`Fetched ${result.totalFetched} remote records${limitNote}`));
+        }
       } catch (error: unknown) {
         spinner.fail(chalk.red('Failed to fetch remote data'));
         const message = error instanceof Error ? error.message : String(error);
@@ -134,13 +187,17 @@ export function registerDiffCommand(program: Command): void {
       const diff: DiffResult = { added: [], removed: [], modified: [] };
 
       // Added: in remote, not in local
-      for (const [id, record] of remoteMap) {
-        if (!localMap.has(id)) diff.added.push(record);
+      if (!options.localOnly) {
+        for (const [id, record] of remoteMap) {
+          if (!localMap.has(id)) diff.added.push(record);
+        }
       }
 
-      // Removed: in local, not in remote
-      for (const [id, record] of localMap) {
-        if (!remoteMap.has(id)) diff.removed.push(record);
+      // Removed: in local, not in remote (if fetching all data)
+      if (!options.limit && !options.localOnly) {
+        for (const [id, record] of localMap) {
+          if (!remoteMap.has(id)) diff.removed.push(record);
+        }
       }
 
       // Modified: in both, but fields differ
@@ -169,7 +226,9 @@ export function registerDiffCommand(program: Command): void {
       }
 
       console.log(chalk.bold(`\n📊 Diff Summary for ${dataType}:`));
-      console.log(`   ${chalk.green(`+ ${diff.added.length} added`)}`);
+      if (!options.localOnly) {
+        console.log(`   ${chalk.green(`+ ${diff.added.length} added`)}`);
+      }
       console.log(`   ${chalk.red(`- ${diff.removed.length} removed`)}`);
       console.log(`   ${chalk.yellow(`~ ${diff.modified.length} modified`)}`);
       console.log();

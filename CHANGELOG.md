@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [3.3.1] — 2026-08-08
+
+### Added
+
+#### `diff` — Performance & Usability Improvements
+
+- **`--local-only` flag** — New smart fetch mode for the `diff` command. Instead of downloading the entire remote table (which is slow and capacity-expensive for large databases), this flag extracts the `_id` values from the local backup file and queries Bubble only for those specific records, using the Data API `in` constraint. IDs are sent in chunks of 50 to respect URL length limits. This reduces a 500-request paginated scan to a single API call for a 10-record backup.
+  - Trade-off: cannot detect records *added* to Bubble after the backup was taken (only detects modifications and deletions of backed-up records).
+- **`--limit <number>` flag** — Caps the number of records fetched from the remote during a `diff`. Useful for spot-checking large tables without downloading everything.
+- **Mutual exclusion validation** — The CLI now exits early with a clear error message if both `--local-only` and `--limit` are provided together.
+- **Mode info header** — When `--local-only` or `--limit` is active, a descriptive info line is printed before the spinner to inform the user of the current fetch mode.
+
+### Changed
+
+- **`diff` summary output** — The `+ N added` line is hidden when running with `--local-only` since new-record detection is not possible in that mode.
+
+### Documentation
+
+- **`README.md`** — Updated `diff` command section with new options, examples (`--local-only`, `--limit`, combined with `--summary`), and trade-off notes.
+- **`docs/architecture.md`** — Added two new Command Flow diagrams (`diff` full fetch and `diff --local-only` smart fetch), updated `BubbleApiClient` method table to reflect the `constraints` parameter and the `deleteRecord` method.
+
+---
+
 ## [3.3.0] — 2026-08-08
 
 ### Added
