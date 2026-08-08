@@ -36,6 +36,7 @@ This document describes the internal structure, design decisions, and command fl
 │   src/utils/cloud-upload.ts   — S3 + GCS adapters               │
 │   src/utils/notifications.ts  — Slack + Discord webhooks        │
 │   src/utils/schema-diff.ts    — Schema diffing engine           │
+│   src/utils/schema-migrations.ts — Schema-as-Code & migration engine │
 │   src/utils/schema-erd.ts     — ERD generation engine           │
 │   src/utils/type-generator.ts — TypeScript interface generator  │
 │   src/utils/table-renderer.ts — cli-table3 table renderer       │
@@ -77,7 +78,7 @@ When invoked without positional or optional arguments (`process.argv.length <= 2
 | `restore.ts` | `restore` | `bubble-api.ts` |
 | `diff.ts` | `diff` | `bubble-api.ts` |
 | `health.ts` | `health` | `bubble-api.ts` |
-| `schema.ts` | `schema list`, `schema diff`, `schema erd` | `bubble-meta.ts`, `schema-diff.ts`, `schema-erd.ts` |
+| `schema.ts` | `schema list`, `schema diff`, `schema erd`, `migrate:generate`, `migrate:list` | `bubble-meta.ts`, `schema-diff.ts`, `schema-erd.ts`, `schema-migrations.ts` |
 | `workflow.ts` | `workflow trigger` | `bubble-api.ts` |
 | `seed.ts` | `seed` | `bubble-api.ts`, `bubble-meta.ts`, `graph-resolver.ts`, `relational-seeder.ts`, `schema-preflight.ts` |
 | `mock.ts` | `mock` | `express` |
@@ -475,6 +476,21 @@ Pure TypeScript diffing engine. No external dependencies.
 | Function | Description |
 |---|---|
 | `diffSchemas(typesA, typesB, envA, envB)` | Produce a `SchemaDiffResult` with added/removed types and field-level changes |
+
+---
+
+### `schema-migrations.ts`
+
+Pure TypeScript Schema-as-Code & migration engine. Handles baseline snapshots, lockfile serialization, and versioned JSON migration generation.
+
+| Export | Description |
+|---|---|
+| `diffToMigrationChanges(diff)` | Transforms structural `SchemaDiffResult` into discrete typed migration actions (`ADD_TABLE`, `REMOVE_TABLE`, `ADD_FIELD`, `REMOVE_FIELD`, `CHANGE_FIELD_TYPE`) |
+| `generateMigration(options)` | Orchestrates migration lifecycle: compares current schema vs lockfile baseline (or `--from-env`), updates `schema.lock.json`, and writes `./migrations/<timestamp>_<name>.json` |
+| `loadSchemaLockfile(filePath)` | Reads and parses existing `schema.lock.json` |
+| `saveSchemaLockfile(filePath, lockfile)` | Atomically persists updated lockfile state |
+| `listMigrations(migrationsDir)` | Reads all migration files chronologically and returns parsed summaries |
+| `readMigrationFile(filePath)` | Reads a single migration JSON document |
 
 ---
 

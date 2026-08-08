@@ -140,4 +140,90 @@ describe('Interactive CLI Mode (TUI)', () => {
       './types.d.ts',
     ]);
   });
+
+  it('should handle interactive schema migration generate command', async () => {
+    storage.saveConfig({ appName: 'test-app', apiKey: 'test-key' }, 'default');
+
+    vi.mocked(clack.select)
+      .mockResolvedValueOnce('schema')
+      .mockResolvedValueOnce('migrate_generate')
+      .mockResolvedValueOnce('version-test')
+      .mockResolvedValueOnce('lockfile');
+    vi.mocked(clack.text)
+      .mockResolvedValueOnce('add_user_orders') // name
+      .mockResolvedValueOnce('Adds orders table and relation') // desc
+      .mockResolvedValueOnce('./custom-migrations'); // dir
+    vi.mocked(clack.confirm).mockResolvedValueOnce(false);
+
+    const parseSpy = vi.spyOn(program, 'parseAsync').mockResolvedValue(program);
+
+    await runInteractiveMenu(program);
+
+    expect(parseSpy).toHaveBeenCalledWith([
+      'node',
+      'bubble-io-cli',
+      'schema',
+      'migrate:generate',
+      '--name',
+      'add_user_orders',
+      '--env',
+      'version-test',
+      '--dir',
+      './custom-migrations',
+      '--description',
+      'Adds orders table and relation',
+    ]);
+  });
+
+  it('should handle interactive schema migration list command', async () => {
+    storage.saveConfig({ appName: 'test-app', apiKey: 'test-key' }, 'default');
+
+    vi.mocked(clack.select)
+      .mockResolvedValueOnce('schema')
+      .mockResolvedValueOnce('migrate_list');
+    vi.mocked(clack.text)
+      .mockResolvedValueOnce('./migrations'); // dir
+    vi.mocked(clack.confirm).mockResolvedValueOnce(false);
+
+    const parseSpy = vi.spyOn(program, 'parseAsync').mockResolvedValue(program);
+
+    await runInteractiveMenu(program);
+
+    expect(parseSpy).toHaveBeenCalledWith([
+      'node',
+      'bubble-io-cli',
+      'schema',
+      'migrate:list',
+      '--dir',
+      './migrations',
+    ]);
+  });
+
+  it('should handle interactive schema baseline snapshot command', async () => {
+    storage.saveConfig({ appName: 'test-app', apiKey: 'test-key' }, 'default');
+
+    vi.mocked(clack.select)
+      .mockResolvedValueOnce('schema')
+      .mockResolvedValueOnce('migrate_snapshot')
+      .mockResolvedValueOnce('version-live');
+    vi.mocked(clack.text)
+      .mockResolvedValueOnce('./migrations'); // dir
+    vi.mocked(clack.confirm).mockResolvedValueOnce(false);
+
+    const parseSpy = vi.spyOn(program, 'parseAsync').mockResolvedValue(program);
+
+    await runInteractiveMenu(program);
+
+    expect(parseSpy).toHaveBeenCalledWith([
+      'node',
+      'bubble-io-cli',
+      'schema',
+      'migrate:generate',
+      '--snapshot-only',
+      '--env',
+      'version-live',
+      '--dir',
+      './migrations',
+    ]);
+  });
 });

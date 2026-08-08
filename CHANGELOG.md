@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.4.0] — 2026-08-08
+
+### Added
+
+#### Schema-as-Code & Database Migrations
+
+- **`schema migrate:generate` (alias: `migrate`)**:
+  - Automatically captures schema changes between local baseline snapshots and live Bubble environments, or directly between two environments (`--from-env`).
+  - Generates versioned, timestamped JSON migration files in `./migrations/<timestamp>_<name>.json`.
+  - Supports discrete declarative change operations: `ADD_TABLE`, `REMOVE_TABLE`, `ADD_FIELD`, `REMOVE_FIELD`, and `CHANGE_FIELD_TYPE`.
+  - `--snapshot-only`: Captures a baseline snapshot into `schema.lock.json` without generating a migration diff file.
+  - `--from-env <environment>`: Direct environment comparison (e.g. `version-live` -> `version-test`) without lockfile side-effects.
+  - `--json`: Machine-readable JSON output for automated CI/CD pipelines.
+
+- **`schema migrate:list` (alias: `migrate:status`)**:
+  - Displays formatted table of all recorded migrations with change counts and timestamps.
+  - Displays lockfile baseline status (App, Environment, Last Migration, Total Tracked Types).
+
+- **New Core Module `src/utils/schema-migrations.ts`**:
+  - `diffToMigrationChanges()`: Transforms structural schema diffs into discrete, typed migration actions.
+  - `generateMigration()`: Handles baseline diffing, lockfile persistence, and file generation.
+  - `loadSchemaLockfile()` / `saveSchemaLockfile()`: Robust `schema.lock.json` serialization and loading.
+  - `listMigrations()` & `readMigrationFile()`: Chronological migration inspection.
+
+- **Interactive TUI Integration**:
+  - Added 3 interactive actions to 📐 **Schema Operations**:
+    - `📝 Generate Schema Migration`: Step-by-step interactive migration wizard with name, description, and source selection.
+    - `📜 View Migration History / Status`: Formatted visual history viewer.
+    - `📸 Create Baseline Schema Snapshot`: Quick baseline initialization.
+
+---
+
 ## [4.3.0] — 2026-08-08
 
 ### Added

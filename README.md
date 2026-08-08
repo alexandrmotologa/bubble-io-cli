@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green?style=flat-square&logo=node.js)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
-[![Tests](https://img.shields.io/badge/tests-278%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
+[![Tests](https://img.shields.io/badge/tests-297%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
 </div>
@@ -38,6 +38,9 @@ bubble-io-cli export db --type User --target sqlite --db ./bubble.db
 
 # Compare schema between environments
 bubble-io-cli schema diff
+
+# Generate database migrations declaratively (New in v4.4.0)
+bubble-io-cli schema migrate:generate --name add_orders
 
 # Start a local mock server for offline testing
 bubble-io-cli mock --file ./backup-product.json --port 3333
@@ -82,7 +85,7 @@ bubble-io-cli
 │  API Key: ********************1234
 │
 ?  What would you like to do?
-│  ● 📐 Schema Operations (List, Diff, ERD diagram)
+│  ● 📐 Schema Operations (List, Diff, ERD, Migrations & Snapshots)
 │  ○ 💾 Data Operations (Backup, Restore, Diff, Seed, REPL Query, DB Export)
 │  ○ 🧬 Code & Type Generation (TypeScript interfaces, Templates, CI/CD)
 │  ○ 🛠️  Developer Tools (PII Audit, Health check, Mock server, Workflows)
@@ -367,6 +370,78 @@ bubble-io-cli schema erd --include-system-types
 
 # Print raw Mermaid code block only (useful for piping)
 bubble-io-cli schema erd --raw
+```
+
+---
+
+### `schema migrate:generate` — Schema-as-Code Database Migrations (New in v4.4.0)
+
+Capture, track, and version control your Bubble.io database schema evolution declaratively.
+
+- Generates timestamped JSON migration files in `./migrations/<timestamp>_<name>.json`
+- Supports 5 discrete declarative operations: `ADD_TABLE`, `REMOVE_TABLE`, `ADD_FIELD`, `REMOVE_FIELD`, and `CHANGE_FIELD_TYPE`
+- Tracks the local baseline state using `migrations/schema.lock.json`
+- Supports direct environment diffing between `version-live` and `version-test` (`--from-env`)
+
+```bash
+# Initialize baseline schema snapshot (creates migrations/schema.lock.json)
+bubble-io-cli schema migrate:generate --snapshot-only
+
+# Generate a migration tracking changes against the local lockfile baseline
+bubble-io-cli schema migrate:generate --name add_phone_and_status --description "Add phone and status fields to User"
+
+# Compare test directly against production without modifying the local lockfile
+bubble-io-cli schema migrate:generate --name sync_prod_to_test --from-env version-live --env version-test
+
+# Specify custom migrations directory
+bubble-io-cli schema migrate:generate --name add_orders --dir ./custom-migrations
+
+# Output migration result as JSON for CI/CD automation
+bubble-io-cli schema migrate:generate --name ci_check --json
+```
+
+**Migration File Example (`migrations/20260808224500_add_phone_and_status.json`):**
+```json
+{
+  "version": "20260808224500",
+  "name": "add_phone_and_status",
+  "description": "Add phone and status fields to User",
+  "createdAt": "2026-08-08T22:45:00.000Z",
+  "app": "my-cool-app",
+  "environment": "version-test",
+  "changes": [
+    {
+      "action": "ADD_FIELD",
+      "table": "User",
+      "field": "phone_number",
+      "type": "text"
+    },
+    {
+      "action": "CHANGE_FIELD_TYPE",
+      "table": "Product",
+      "field": "price",
+      "previousType": "text",
+      "type": "number"
+    }
+  ]
+}
+```
+
+---
+
+### `schema migrate:list` — Inspect Migration History (New in v4.4.0)
+
+Display all recorded migration files and inspect the current schema lockfile baseline:
+
+```bash
+# View formatted terminal table of migrations
+bubble-io-cli schema migrate:list
+
+# Custom directory
+bubble-io-cli schema migrate:list --dir ./custom-migrations
+
+# Machine-readable JSON output
+bubble-io-cli schema migrate:list --json
 ```
 
 ---
@@ -1014,7 +1089,7 @@ bubble-io-cli/
 │   │   ├── restore.ts             # restore — upload records
 │   │   ├── diff.ts                # diff — compare local vs remote
 │   │   ├── health.ts              # health — ping API
-│   │   ├── schema.ts              # schema list / diff / erd
+│   │   ├── schema.ts              # schema list / diff / erd / migrate:generate / migrate:list
 │   │   ├── workflow.ts            # workflow trigger — backend workflows
 │   │   ├── seed.ts                # seed — relational import & graph execution
 │   │   ├── mock.ts                # mock — local API server
@@ -1044,21 +1119,22 @@ bubble-io-cli/
 │       ├── relational-seeder.ts   # Sequential execution engine for relational imports
 │       ├── schema-preflight.ts    # Schema pre-flight validator for seed files
 │       ├── schema-diff.ts         # Schema diffing engine
+│       ├── schema-migrations.ts   # Schema-as-Code & migration engine
 │       ├── schema-erd.ts          # Mermaid ERD generator
 │       ├── type-generator.ts      # TypeScript interface generator
 │       ├── table-renderer.ts      # cli-table3 table renderer
 │       ├── query-session.ts       # REPL session state machine
 │       └── ci-generators/
 │           └── github-actions.ts  # GitHub Actions YAML generator
-
-└── tests/                         # Vitest unit tests (226 tests)
-    ├── bubble-api.test.ts
-    ├── storage.test.ts
-    ├── csv.test.ts
-    ├── restore.test.ts
-    ├── encryption.test.ts
-    ├── schema-diff.test.ts
-    └── notifications.test.ts
+│
+└── tests/                         # Vitest unit tests (297 tests)
+    ├── schema-migrations.test.ts
+    ├── interactive.test.ts
+    ├── schema-preflight.test.ts
+    ├── relational-seeder.test.ts
+    ├── type-generator.test.ts
+    ├── pii-scanner.test.ts
+    └── ...
 ```
 
 > **Separation of concerns:** Command files handle only UX (spinners, colors, exit codes). All business logic lives in `services/` and `utils/`.

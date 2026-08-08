@@ -53,6 +53,7 @@ async function promptForCredentials(profileName = 'default'): Promise<{ appName:
     validate: (val) => {
       if (!val || val.trim().length === 0) return 'App name is required.';
       if (val.includes('.')) return 'Enter only the subdomain name (e.g. "my-app", not "my-app.bubbleapps.io").';
+      return undefined;
     },
   });
   checkCancel(appName);
@@ -62,6 +63,7 @@ async function promptForCredentials(profileName = 'default'): Promise<{ appName:
     mask: '•',
     validate: (val) => {
       if (!val || val.trim().length === 0) return 'API Key is required.';
+      return undefined;
     },
   });
   checkCancel(apiKey);
@@ -113,6 +115,9 @@ async function handleSchemaMenu(program: Command): Promise<void> {
       { value: 'list', label: '🔍 List App Schema', hint: 'Browse all data types and fields' },
       { value: 'diff', label: '🔄 Schema Diff', hint: 'Compare schema between test and live environments' },
       { value: 'erd', label: '📊 Generate ERD Diagram', hint: 'Export Mermaid.js Entity-Relationship diagram' },
+      { value: 'migrate_generate', label: '📝 Generate Schema Migration', hint: 'Create timestamped migration file from schema diff' },
+      { value: 'migrate_list', label: '📜 View Migration History / Status', hint: 'Inspect recorded migrations and lockfile baseline' },
+      { value: 'migrate_snapshot', label: '📸 Create Baseline Schema Snapshot', hint: 'Initialize or update schema.lock.json baseline' },
       { value: 'back', label: '⬅️  Back to Main Menu' },
     ],
   });
@@ -214,6 +219,124 @@ async function handleSchemaMenu(program: Command): Promise<void> {
     }
 
     await program.parseAsync(args);
+  } else if (action === 'migrate_generate') {
+    const name = await text({
+      message: 'Migration name / identifier:',
+      placeholder: 'e.g. add_user_profile_and_orders',
+      validate: (val) => (!val || val.trim().length === 0 ? 'Migration name is required.' : undefined),
+    });
+    checkCancel(name);
+
+    const description = await text({
+      message: 'Migration description (optional):',
+      placeholder: 'e.g. Add phone number and status field to User table',
+    });
+    checkCancel(description);
+
+    const env = await select({
+      message: 'Target environment to inspect:',
+      options: [
+        { value: 'version-test', label: '🧪 Development (version-test)' },
+        { value: 'version-live', label: '🚀 Production (version-live)' },
+      ],
+    });
+    checkCancel(env);
+
+    const diffMode = await select({
+      message: 'Baseline comparison source:',
+      options: [
+        { value: 'lockfile', label: '🔒 Local Lockfile Baseline (schema.lock.json)', hint: 'Tracks incremental changes against last snapshot' },
+        { value: 'from_env', label: '🌐 Direct Environment Diff (--from-env)', hint: 'Compare directly with another live Bubble environment' },
+      ],
+    });
+    checkCancel(diffMode);
+
+    let fromEnvVal: string | undefined;
+    if (diffMode === 'from_env') {
+      const fromEnv = await select({
+        message: 'Source environment to compare from:',
+        options: [
+          { value: 'version-live', label: '🚀 Production (version-live)' },
+          { value: 'version-test', label: '🧪 Development (version-test)' },
+        ],
+      });
+      checkCancel(fromEnv);
+      fromEnvVal = String(fromEnv);
+    }
+
+    const dir = await text({
+      message: 'Migrations directory:',
+      placeholder: './migrations',
+      defaultValue: './migrations',
+    });
+    checkCancel(dir);
+
+    const args = [
+      'node',
+      'bubble-io-cli',
+      'schema',
+      'migrate:generate',
+      '--name',
+      name.trim(),
+      '--env',
+      String(env),
+      '--dir',
+      dir.trim() || './migrations',
+    ];
+
+    if (description && description.trim().length > 0) {
+      args.push('--description', description.trim());
+    }
+
+    if (fromEnvVal) {
+      args.push('--from-env', fromEnvVal);
+    }
+
+    await program.parseAsync(args);
+  } else if (action === 'migrate_list') {
+    const dir = await text({
+      message: 'Migrations directory:',
+      placeholder: './migrations',
+      defaultValue: './migrations',
+    });
+    checkCancel(dir);
+
+    await program.parseAsync([
+      'node',
+      'bubble-io-cli',
+      'schema',
+      'migrate:list',
+      '--dir',
+      dir.trim() || './migrations',
+    ]);
+  } else if (action === 'migrate_snapshot') {
+    const env = await select({
+      message: 'Target environment for snapshot:',
+      options: [
+        { value: 'version-test', label: '🧪 Development (version-test)' },
+        { value: 'version-live', label: '🚀 Production (version-live)' },
+      ],
+    });
+    checkCancel(env);
+
+    const dir = await text({
+      message: 'Migrations directory for lockfile:',
+      placeholder: './migrations',
+      defaultValue: './migrations',
+    });
+    checkCancel(dir);
+
+    await program.parseAsync([
+      'node',
+      'bubble-io-cli',
+      'schema',
+      'migrate:generate',
+      '--snapshot-only',
+      '--env',
+      String(env),
+      '--dir',
+      dir.trim() || './migrations',
+    ]);
   }
 }
 

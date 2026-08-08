@@ -152,7 +152,7 @@ export async function runRelationalSeed(
       const result = await client.createRecord(node.typeName, safeData);
       totalCreated++;
       byType[node.typeName] = (byType[node.typeName] ?? 0) + 1;
-      createdRecords.push({ typeName: node.typeName, id: result.id, ref: node.ref });
+      createdRecords.push({ typeName: node.typeName, id: result.id, ref: node.ref ?? undefined });
 
       // Store the Bubble _id under this node's alias for future ref substitution
       if (node.ref) {

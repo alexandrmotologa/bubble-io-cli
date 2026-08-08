@@ -253,7 +253,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v4.3.0 — Interactive CLI Mode (TUI) (Current)
+## ✅ v4.3.0 — Interactive CLI Mode (TUI) (Shipped)
 
 - [x] **Interactive Guided Experience** (`bubble-io-cli` with no arguments) — Launches full terminal UI wizard with `@clack/prompts`.
 - [x] **Categorized Menu Navigation**:
@@ -265,6 +265,18 @@ This document outlines the planned features and improvements for future versions
 - [x] **Seamless command delegation**: Executes Commander actions without subshell overhead.
 - [x] **Graceful exit and cancellation**: `Ctrl+C` / `Esc` handled cleanly across all prompt layers.
 - [x] **Comprehensive unit test coverage**: Full vitest suite for interactive flows.
+
+---
+
+## ✅ v4.4.0 — Schema-as-Code & Database Migrations (Current)
+
+- [x] **`schema migrate:generate` (`migrate`)** — Capture and version-control schema changes into timestamped JSON files (`./migrations/<timestamp>_<name>.json`).
+- [x] **Discrete Migration Actions** — `ADD_TABLE`, `REMOVE_TABLE`, `ADD_FIELD`, `REMOVE_FIELD`, `CHANGE_FIELD_TYPE`.
+- [x] **Schema Lockfile (`schema.lock.json`)** — Local baseline state tracking without requiring external databases.
+- [x] **Snapshot Baseline (`--snapshot-only`)** — Quick baseline initialization without diff noise.
+- [x] **Direct Live Environment Diff (`--from-env`)** — Diff between environments without touching local lockfiles.
+- [x] **`schema migrate:list` (`migrate:status`)** — Table overview of recorded migration history and lockfile health.
+- [x] **Interactive TUI Integration** — Guided migration generation, status viewer, and snapshot tools in interactive mode.
 
 ---
 
