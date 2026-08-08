@@ -210,23 +210,39 @@ bubble-io-cli restore --file ./backup-order.json --concurrency 10
 Compare live Bubble data against a local backup file and show exactly what changed.
 
 ```bash
-# Compare Product type with a local backup
+# Compare Product type with a local backup (full table fetch)
 bubble-io-cli diff --file ./backup-product-2026-08-07.json
+
+# ⚡ Fast mode: only fetch the specific record IDs from the backup
+# Best for large tables — no full table scan, no extra Capacity Units consumed
+bubble-io-cli diff --file ./backup-user.json --local-only
+
+# Limit the number of remote records fetched (useful for spot-checking)
+bubble-io-cli diff --file ./backup-product.json --limit 500
 
 # Compare specific fields only
 bubble-io-cli diff --file ./backup-user.json --fields name,email,plan
 
-# Show summary counts only
+# Show summary counts only (no per-record details)
 bubble-io-cli diff --file ./backup-order.json --summary
+
+# Combine --local-only with --summary for a quick health check
+bubble-io-cli diff --file ./backup-user.json --local-only --summary
 ```
 
-| Option | Alias | Description |
-|---|---|---|
-| `--file <path>` | `-f` | Local backup file (**required**) |
-| `--type <datatype>` | `-t` | Override the data type |
-| `--env <environment>` | `-e` | Target environment |
-| `--fields <list>` | | Comma-separated fields to compare |
-| `--summary` | | Show counts only |
+| Option | Alias | Description | Default |
+|---|---|---|---|
+| `--file <path>` | `-f` | Local backup file (**required**) | — |
+| `--type <datatype>` | `-t` | Override the data type | — |
+| `--env <environment>` | `-e` | Target environment | `version-test` |
+| `--fields <list>` | | Comma-separated fields to compare | all |
+| `--limit <number>` | `-l` | Cap the number of records fetched from Bubble | all |
+| `--local-only` | | Only fetch the specific IDs from the backup — much faster for large tables | — |
+| `--summary` | | Show counts only, no per-record detail | — |
+
+> **`--local-only` trade-off:** This mode queries Bubble only for the record IDs already present in the backup file (in chunks of 50), making it extremely fast and capacity-efficient. However, it **cannot detect records that were added to Bubble after the backup was taken**. Use the default (full fetch) or `--limit` when you need to detect new records too.
+>
+> **`--local-only` and `--limit` are mutually exclusive** — the CLI will exit with an error if both are specified together.
 
 ---
 
