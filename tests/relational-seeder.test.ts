@@ -228,5 +228,64 @@ describe('Graph Resolver & Relational Seeder', () => {
         product: 'bubble_prod_222',
       });
     });
+
+    it('should rollback and delete created records in reverse order when creation fails with rollbackOnError: true', async () => {
+      vi.mocked(httpStub.post)
+        .mockResolvedValueOnce({ data: { id: 'bubble_cat_999' } })
+        .mockRejectedValueOnce(new Error('Data type not found (404)'));
+
+      vi.mocked(httpStub.delete).mockResolvedValueOnce({});
+
+      const client = new BubbleApiClient('test-app', 'api-key', 'version-test', httpStub);
+
+      const doc: RelationalSeedDoc = {
+        Product: [
+          { _ref: '@prod_1', name: 'MacBook', category: '@cat_1' },
+        ],
+        Category: [
+          { _ref: '@cat_1', name: 'Computers' },
+        ],
+      };
+
+      const result = await runRelationalSeed({
+        doc,
+        client,
+        silent: true,
+        rollbackOnError: true,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.rolledBack).toBe(true);
+      expect(result.totalRolledBack).toBe(1);
+      expect(httpStub.delete).toHaveBeenCalledWith('/Category/bubble_cat_999');
+    });
+
+    it('should not rollback when rollbackOnError is false (default)', async () => {
+      vi.mocked(httpStub.post)
+        .mockResolvedValueOnce({ data: { id: 'bubble_cat_999' } })
+        .mockRejectedValueOnce(new Error('Data type not found (404)'));
+
+      const client = new BubbleApiClient('test-app', 'api-key', 'version-test', httpStub);
+
+      const doc: RelationalSeedDoc = {
+        Product: [
+          { _ref: '@prod_1', name: 'MacBook', category: '@cat_1' },
+        ],
+        Category: [
+          { _ref: '@cat_1', name: 'Computers' },
+        ],
+      };
+
+      const result = await runRelationalSeed({
+        doc,
+        client,
+        silent: true,
+        rollbackOnError: false,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.rolledBack).toBe(false);
+      expect(httpStub.delete).not.toHaveBeenCalled();
+    });
   });
 });

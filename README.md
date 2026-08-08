@@ -912,8 +912,9 @@ Relational seed file structure:
 | Circular dependencies (A↔B) | ✅ 2-pass: Create + deferred PATCH |
 | Unknown `@ref` alias | ✅ Fails fast with clear error |
 | Duplicate `_ref` aliases | ✅ Fails fast with clear error |
+| Atomic rollback on error | ✅ Reverse cleanup with `--rollback-on-error` |
 
-> **Tip:** Always run with `--dry-run` first to preview the full creation order and detect circular link resolution before making any API calls.
+> **Tip:** Always run with `--dry-run` first to preview the full creation order and detect circular link resolution before making any API calls. Use `--rollback-on-error` in production/staging pipelines to automatically delete all created records in reverse order if any API call fails.
 
 **Options:**
 
@@ -922,6 +923,7 @@ Relational seed file structure:
 | `--file <path>` | `-f` | Path to seed JSON file (**required**) | — |
 | `--type <datatype>` | `-t` | Override data type (legacy format only) | from file |
 | `--env <env>` | `-e` | Target environment | `version-test` |
+| `--rollback-on-error` | | Automatically delete created records in reverse order if any error occurs | false |
 | `--concurrency <n>` | | Parallel requests (legacy mode only, 1–20) | `5` |
 | `--dry-run` | | Preview execution plan without API calls | false |
 | `--json` | | Machine-readable JSON output | false |

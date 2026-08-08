@@ -41,7 +41,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   | Circular dependencies (A↔B) | ✅ 2-pass: Create without circular field + deferred PATCH |
   | Unknown `@ref` alias | ✅ Fails fast with clear error before any API calls |
   | Duplicate `_ref` aliases | ✅ Fails fast with clear error before any API calls |
+  | Atomic rollback on error | ✅ Reverse deletion of created records via `--rollback-on-error` |
 
+- **`--rollback-on-error` flag** — When enabled, any failure during record creation or deferred patching triggers an automatic reverse cleanup: all records created during the session are deleted via Bubble's DELETE endpoint to prevent orphaned/dirty states.
 - **`--dry-run` in relational mode** — Prints the full creation order, which records are being created, and which deferred PATCH operations will be issued for circular references. Zero API calls made.
 
 - **`--json` output** in relational mode returns `{ success, format: "relational", totalCreated, totalPatched, byType, idMap, errors }`.
