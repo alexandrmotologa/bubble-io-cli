@@ -39,6 +39,8 @@ This document describes the internal structure, design decisions, and command fl
 │   src/utils/type-generator.ts — TypeScript interface generator  │
 │   src/utils/table-renderer.ts — cli-table3 table renderer       │
 │   src/utils/query-session.ts  — REPL session state machine      │
+│   src/utils/graph-resolver.ts — DAG & topological sort engine   │
+│   src/utils/relational-seeder.ts — Relational execution engine  │
 │   src/utils/ci-generators/    — CI/CD workflow file generators  │
 │     └─ github-actions.ts  GitHub Actions YAML generator          │
 └─────────────────────────────────────────────────────────────────┘
@@ -68,7 +70,7 @@ Each file in `src/commands/` maps to one CLI sub-command (or sub-command group) 
 | `health.ts` | `health` | `bubble-api.ts` |
 | `schema.ts` | `schema list`, `schema diff`, `schema erd` | `bubble-meta.ts`, `schema-diff.ts`, `schema-erd.ts` |
 | `workflow.ts` | `workflow trigger` | `bubble-api.ts` |
-| `seed.ts` | `seed` | `bubble-api.ts` |
+| `seed.ts` | `seed` | `bubble-api.ts`, `graph-resolver.ts`, `relational-seeder.ts` |
 | `mock.ts` | `mock` | `express` |
 | `plugin.ts` | `plugin list`, `plugin get`, `plugin deploy` | `bubble-plugin.ts` |
 | `generate.ts` | `generate` (templates), `generate types`, `generate ci` | `bubble-meta.ts`, `type-generator.ts`, `ci-generators/github-actions.ts` |
@@ -521,6 +523,29 @@ Immutable REPL session state machine. Every function returns a new session objec
 | `nextPage(session)` | Increment page, clamped to `totalPages` |
 | `prevPage(session)` | Decrement page, clamped to 1 |
 | `currentCursor(session)` | Calculate the 0-based API cursor offset for the current page |
+
+---
+
+### `graph-resolver.ts`
+
+Directed Acyclic Graph (DAG) construction, topological sort, and cycle detection engine. Pure TypeScript, zero external dependencies.
+
+| Function | Description |
+|---|---|
+| `resolveGraph(doc)` | Parses relational seed document, validates `@ref` aliases, detects circular links, and returns topologically ordered nodes + deferred patch list |
+| `substituteRefs(value, idMap)` | Recursively replaces `@alias` strings, arrays, and nested structures with resolved Bubble IDs |
+
+---
+
+### `relational-seeder.ts`
+
+Sequential execution engine for multi-type relational imports.
+
+| Function | Description |
+|---|---|
+| `isRelationalDoc(parsed)` | Heuristic to distinguish relational multi-type documents from legacy single-type seed files |
+| `runRelationalSeed(options)` | Orchestrates the full seed lifecycle: graph resolution → sequential creation → live ID mapping → deferred PATCH execution |
+| `printRelationalSummary(result)` | Renders formatted terminal summary with per-type record counts and resolved links |
 
 ---
 
