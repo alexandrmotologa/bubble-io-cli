@@ -839,6 +839,96 @@ Table names are prefixed with `bubble_` (e.g. `Order` → `bubble_order`) to avo
 
 ---
 
+### `seed` — Relational Data Import (New in v4.1.0)
+
+Import records into Bubble from a local JSON file. Supports two formats:
+
+#### Legacy Format (single data type)
+```bash
+bubble-io-cli seed --file seeds/products.json
+bubble-io-cli seed --file seeds/users.json --type User --env version-test
+bubble-io-cli seed --file seeds/orders.json --dry-run
+```
+
+Legacy seed file structure:
+```json
+{
+  "type": "Product",
+  "records": [
+    { "Name": "Widget Pro", "Price": 29.99 },
+    { "Name": "Widget Lite", "Price": 9.99 }
+  ]
+}
+```
+
+#### Relational Format (multi-type with cross-references)
+
+Import entire interconnected datasets in a **single command**. Use `_ref` aliases to define cross-links between records — the CLI handles creation order automatically via a dependency graph engine.
+
+```bash
+bubble-io-cli seed --file seeds/catalog.json
+bubble-io-cli seed --file seeds/catalog.json --dry-run   # preview the execution plan
+bubble-io-cli seed --file seeds/catalog.json --json      # machine-readable output
+```
+
+Relational seed file structure:
+```json
+{
+  "Category": [
+    { "_ref": "@cat_tech", "Name": "Technology" },
+    { "_ref": "@cat_laptops", "Name": "Laptops", "Parent": "@cat_tech" }
+  ],
+  "Product": [
+    {
+      "_ref": "@prod_macbook",
+      "Name": "MacBook Pro M3",
+      "Category": "@cat_laptops",
+      "Available_Sizes": ["@size_14", "@size_16"]
+    }
+  ],
+  "Size": [
+    { "_ref": "@size_14", "Name": "14 inch", "Product": "@prod_macbook" },
+    { "_ref": "@size_16", "Name": "16 inch", "Product": "@prod_macbook" }
+  ],
+  "Price": [
+    { "Amount": 1999, "Currency": "USD", "Product": "@prod_macbook", "Size": "@size_14" },
+    { "Amount": 2499, "Currency": "USD", "Product": "@prod_macbook", "Size": "@size_16" }
+  ]
+}
+```
+
+**How the `_ref` / `@alias` system works:**
+- `_ref` assigns a **temporary local alias** to a record (e.g. `"_ref": "@prod_macbook"`). It is never sent to Bubble.
+- Any field value starting with `@` is treated as a **cross-reference** and replaced at runtime with the real Bubble `_id` of the aliased record.
+- Arrays of references are fully supported: `"Sizes": ["@size_14", "@size_16"]`.
+
+**Graph resolution capabilities:**
+
+| Scenario | Supported |
+|---|---|
+| N-level deep dependencies (A→B→C→…→N) | ✅ Unlimited depth |
+| Array / List of references | ✅ `["@ref1", "@ref2"]` |
+| Self-referencing hierarchies (e.g. Category tree) | ✅ Auto-detected |
+| Circular dependencies (A↔B) | ✅ 2-pass: Create + deferred PATCH |
+| Unknown `@ref` alias | ✅ Fails fast with clear error |
+| Duplicate `_ref` aliases | ✅ Fails fast with clear error |
+
+> **Tip:** Always run with `--dry-run` first to preview the full creation order and detect circular link resolution before making any API calls.
+
+**Options:**
+
+| Option | Short | Description | Default |
+|---|---|---|---|
+| `--file <path>` | `-f` | Path to seed JSON file (**required**) | — |
+| `--type <datatype>` | `-t` | Override data type (legacy format only) | from file |
+| `--env <env>` | `-e` | Target environment | `version-test` |
+| `--concurrency <n>` | | Parallel requests (legacy mode only, 1–20) | `5` |
+| `--dry-run` | | Preview execution plan without API calls | false |
+| `--json` | | Machine-readable JSON output | false |
+| `--profile <name>` | `-p` | Named credential profile | active |
+
+---
+
 ### `completions` — Shell Tab Completion
 
 
@@ -867,6 +957,7 @@ bubble-io-cli/
 │   │   ├── config.ts              # config — credentials & profiles
 │   │   ├── backup.ts              # backup — export with full options
 │   │   ├── restore.ts             # restore — bulk upload from file
+│   │   ├── seed.ts                # seed — relational & legacy data import
 │   │   ├── diff.ts                # diff — compare live vs local
 │   │   ├── health.ts              # health — API connectivity check
 │   │   ├── schema.ts              # schema list / schema diff / schema erd
@@ -883,10 +974,10 @@ bubble-io-cli/
 │   │   ├── bubble-meta.ts         # BubbleMetaClient — Meta API (schema)
 │   │   ├── bubble-plugin.ts       # BubblePluginClient — Plugin Editor API
 │   │   └── db-providers/          # Database export providers (provider pattern)
-│   │       ├── index.ts           # DbProvider interface + getDbProvider() factory
-│   │       ├── sqlite.ts          # SQLite provider (sql.js — pure JS)
-│   │       ├── postgres.ts        # PostgreSQL provider (dynamic import: pg)
-│   │       └── bigquery.ts        # BigQuery provider (dynamic import: @google-cloud/bigquery)
+│   │       ├── index.ts           #   DbProvider interface + getDbProvider() factory
+│   │       ├── sqlite.ts          #   SQLite provider (sql.js, zero native deps)
+│   │       ├── postgres.ts        #   PostgreSQL provider (dynamic import: pg)
+│   │       └── bigquery.ts        #   BigQuery provider (dynamic import: @google-cloud/bigquery)
 │   └── utils/                     # Infrastructure helpers
 │       ├── storage.ts             # Configstore — config & multi-profile
 │       ├── csv.ts                 # CSV serialization (flattenRecord + jsonToCsv)
@@ -894,6 +985,9 @@ bubble-io-cli/
 │       ├── cloud-upload.ts        # S3 + GCS upload adapters
 │       ├── notifications.ts       # Slack + Discord webhook dispatcher
 │       ├── pii-scanner.ts         # PII detection engine
+│       ├── plugin-loader.ts       # Plugin auto-discovery & registration
+│       ├── graph-resolver.ts      # DAG builder, topological sort, circular dep detection
+│       ├── relational-seeder.ts   # Sequential execution engine for relational imports
 │       ├── schema-diff.ts         # Schema diffing engine
 │       ├── schema-erd.ts          # Mermaid ERD generator
 │       ├── type-generator.ts      # TypeScript interface generator
@@ -901,6 +995,7 @@ bubble-io-cli/
 │       ├── query-session.ts       # REPL session state machine
 │       └── ci-generators/
 │           └── github-actions.ts  # GitHub Actions YAML generator
+
 └── tests/                         # Vitest unit tests (226 tests)
     ├── bubble-api.test.ts
     ├── storage.test.ts

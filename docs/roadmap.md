@@ -216,4 +216,33 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
+## ✅ v4.1.0 — Relational Data Import / Graph Seed (Current)
+
+- [x] **`seed` command upgraded** — now supports a new multi-type relational JSON format with automatic dependency resolution alongside the original legacy format. Format is auto-detected; no flags needed.
+
+- [x] **`_ref` / `@alias` cross-link system:**
+  - `"_ref": "@alias"` assigns a temporary local alias to a record (never sent to Bubble)
+  - Field values starting with `@` are automatically resolved to real Bubble `_id` before the API call
+  - Arrays of references fully supported: `"Sizes": ["@size_14", "@size_16"]`
+
+- [x] **Graph Resolution Engine** — `src/utils/graph-resolver.ts`
+  - DAG (Directed Acyclic Graph) construction from seed document
+  - Kahn's Algorithm topological sort → unlimited depth (N-levels: A→B→C→…→N)
+  - Self-referencing hierarchies (Category tree, org charts, etc.)
+  - Automatic circular dependency detection and 2-pass resolution (Create + deferred PATCH)
+  - Fails fast with clear errors for unknown aliases or duplicate `_ref` definitions
+
+- [x] **Relational Seeder Engine** — `src/utils/relational-seeder.ts`
+  - Sequential execution following topological order
+  - In-memory `@ref → Bubble _id` map maintained across all type creations
+  - Deferred PATCH phase for circular dependency resolution
+  - Real-time progress with per-record spinners
+  - `--dry-run` mode: prints full creation order + deferred patches, zero API calls
+
+- [x] **Full backward compatibility** — legacy `{ "type": "...", "records": [...] }` format unchanged
+- [x] **Example file** — `examples/relational-seed.json` demonstrates 4-level relational dataset with circular refs
+- [x] `src/commands/seed.ts` — auto-routes between legacy and relational engines
+
+---
+
 > 💬 **Have an idea?** [Open a feature request](https://github.com/alexandrmotologa/bubble-io-cli/issues/new?template=feature_request.md) — we'd love to hear from you!

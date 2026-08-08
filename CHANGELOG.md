@@ -7,7 +7,57 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.1.0] — 2026-08-08
+
+### Added
+
+#### `seed` — Relational Data Import (Graph / Smart Seed)
+
+- **Relational format for `bubble-io-cli seed`** — A new JSON format that lets users import entire interconnected relational datasets in a single command, with automatic dependency resolution.
+
+- **`_ref` / `@alias` system:**
+  - `"_ref": "@alias"` assigns a temporary local alias to a record. The alias is never sent to Bubble.
+  - Any field value starting with `@` (e.g. `"Category": "@cat_tech"`) is treated as a cross-reference and replaced at runtime with the real Bubble `_id` of the aliased record.
+  - Arrays of references fully supported: `"Sizes": ["@size_14", "@size_16"]`.
+
+- **Graph Resolution Engine** — `src/utils/graph-resolver.ts`
+  - Builds a Directed Acyclic Graph (DAG) from the seed document.
+  - `resolveGraph(doc)` — validates all `_ref`/`@ref` pairs, detects cycles, returns a topologically sorted execution queue + deferred patch list.
+  - `substituteRefs(value, idMap)` — recursively replaces `@alias` strings/arrays/objects with real Bubble IDs.
+  - Validation: fails fast with a clear message for duplicate `_ref` aliases or unknown `@ref` targets.
+
+- **Relational Seeder Engine** — `src/utils/relational-seeder.ts`
+  - `runRelationalSeed(opts)` — orchestrates the full import lifecycle: resolve graph → create in order → maintain ID map → execute deferred patches.
+  - `isRelationalDoc(parsed)` — detects whether a JSON file is the new relational format vs. the legacy single-type format; used by `seed` command for transparent auto-routing.
+  - `printRelationalSummary(result)` — renders a formatted per-type breakdown after import.
+
+- **Capabilities:**
+
+  | Scenario | Behavior |
+  |---|---|
+  | N-level deep dependencies (A→B→C→…→N) | ✅ Unlimited depth via Kahn's topological sort |
+  | Array / List-of-references fields | ✅ `["@ref1", "@ref2"]` fully substituted |
+  | Self-referencing hierarchies (e.g. Category tree) | ✅ Individual record-level graph nodes |
+  | Circular dependencies (A↔B) | ✅ 2-pass: Create without circular field + deferred PATCH |
+  | Unknown `@ref` alias | ✅ Fails fast with clear error before any API calls |
+  | Duplicate `_ref` aliases | ✅ Fails fast with clear error before any API calls |
+
+- **`--dry-run` in relational mode** — Prints the full creation order, which records are being created, and which deferred PATCH operations will be issued for circular references. Zero API calls made.
+
+- **`--json` output** in relational mode returns `{ success, format: "relational", totalCreated, totalPatched, byType, idMap, errors }`.
+
+- **Backward compatibility** — Fully maintained. The legacy `{ "type": "...", "records": [...] }` format continues to work without any changes. Format is auto-detected.
+
+- **Example file** — `examples/relational-seed.json` with a 4-level (Category → Product → Size → Price) dataset demonstrating circular link resolution.
+
+### Changed
+
+- `src/commands/seed.ts` — Extended to auto-detect format and route to `RelationalSeeder` for relational docs; legacy path unchanged.
+
+---
+
 ## [4.0.0] — 2026-08-08
+
 
 ### Added
 
