@@ -4,6 +4,7 @@ import ora from 'ora';
 import { readFileSync } from 'fs';
 import { storage } from '../utils/storage.js';
 import { BubbleApiClient } from '../services/bubble-api.js';
+import { pluginManager } from '../utils/plugin-manager.js';
 
 type RestoreMode = 'create' | 'upsert';
 
@@ -144,6 +145,15 @@ export function registerRestoreCommand(program: Command): void {
       let failed = 0;
       const errors: string[] = [];
 
+      // ── beforeRestore hook ────────────────────────────────────────────────────────
+      await pluginManager.runHook('beforeRestore', {
+        appName,
+        dataType,
+        environment: options.env,
+        filePath: options.file,
+        mode: mode as 'create' | 'upsert',
+      });
+
       // Process in batches respecting the concurrency limit
       for (let i = 0; i < backupFile.data.length; i += concurrency) {
         const batch = backupFile.data.slice(i, i + concurrency);
@@ -183,6 +193,17 @@ export function registerRestoreCommand(program: Command): void {
           console.error(chalk.dim(`   … and ${errors.length - 10} more`));
         }
       }
+
+      // ── afterRestore hook ────────────────────────────────────────────────────────
+      await pluginManager.runHook('afterRestore', {
+        appName,
+        dataType,
+        environment: options.env,
+        filePath: options.file,
+        mode: mode as 'create' | 'upsert',
+        restoredCount: created + updated,
+        errors: failed,
+      });
 
       console.log(`\n   ${chalk.bold('Type:    ')} ${chalk.cyan(dataType)}`);
       console.log(`   ${chalk.bold('Env:     ')} ${chalk.cyan(options.env)}`);

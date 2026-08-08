@@ -44,6 +44,8 @@ This document describes the internal structure, design decisions, and command fl
 │   src/utils/graph-resolver.ts — DAG & topological sort engine   │
 │   src/utils/relational-seeder.ts — Relational execution engine  │
 │   src/utils/schema-preflight.ts  — Schema pre-flight validator  │
+│   src/utils/plugin-loader.ts  — Plugin auto-discovery & registration │
+│   src/utils/plugin-manager.ts — Lifecycle hook registry (singleton) │
 │   src/utils/ci-generators/    — CI/CD workflow file generators  │
 │     └─ github-actions.ts  GitHub Actions YAML generator          │
 └─────────────────────────────────────────────────────────────────┘
@@ -74,17 +76,17 @@ When invoked without positional or optional arguments (`process.argv.length <= 2
 | Command file | Sub-commands | Depends on |
 |---|---|---|
 | `config.ts` | `config` | `storage.ts` |
-| `backup.ts` | `backup` | `bubble-api.ts`, `csv.ts`, `encryption.ts`, `cloud-upload.ts`, `notifications.ts` |
-| `restore.ts` | `restore` | `bubble-api.ts` |
+| `backup.ts` | `backup` | `bubble-api.ts`, `csv.ts`, `encryption.ts`, `cloud-upload.ts`, `notifications.ts`, `plugin-manager.ts` |
+| `restore.ts` | `restore` | `bubble-api.ts`, `plugin-manager.ts` |
 | `diff.ts` | `diff` | `bubble-api.ts` |
 | `health.ts` | `health` | `bubble-api.ts` |
-| `schema.ts` | `schema list`, `schema diff`, `schema erd`, `migrate:generate`, `migrate:list` | `bubble-meta.ts`, `schema-diff.ts`, `schema-erd.ts`, `schema-migrations.ts` |
+| `schema.ts` | `schema list`, `schema diff`, `schema erd`, `migrate:generate`, `migrate:list` | `bubble-meta.ts`, `schema-diff.ts`, `schema-erd.ts`, `schema-migrations.ts`, `plugin-manager.ts` |
 | `workflow.ts` | `workflow trigger` | `bubble-api.ts` |
 | `seed.ts` | `seed` | `bubble-api.ts`, `bubble-meta.ts`, `graph-resolver.ts`, `relational-seeder.ts`, `schema-preflight.ts` |
 | `mock.ts` | `mock` | `express` |
 | `plugin.ts` | `plugin list`, `plugin get`, `plugin deploy` | `bubble-plugin.ts` |
 | `generate.ts` | `generate` (templates), `generate types`, `generate ci` | `bubble-meta.ts`, `type-generator.ts`, `ci-generators/github-actions.ts` |
-| `export.ts` | `export db` | `bubble-api.ts`, `db-providers/index.ts` |
+| `export.ts` | `export db` | `bubble-api.ts`, `db-providers/index.ts`, `plugin-manager.ts` |
 | `query.ts` | `query` | `bubble-api.ts`, `bubble-meta.ts`, `table-renderer.ts`, `query-session.ts` |
 | `audit.ts` | `audit privacy` | `bubble-meta.ts`, `pii-scanner.ts` |
 | `completions.ts` | `completions` | — |
@@ -622,3 +624,58 @@ dist/
 3. Import and call `registerMyCommand(program)` in `src/index.ts`.
 4. Write unit tests in `tests/my-command.test.ts`.
 5. Document the new command in `README.md` and `CHANGELOG.md`.
+
+---
+
+## Plugin Lifecycle Hook System — `src/utils/plugin-manager.ts`
+
+The `PluginManager` singleton (`pluginManager`) provides a typed event bus for lifecycle hooks. It is separate from the plugin loader (which handles discovery and registration of custom commands).
+
+### Architecture
+
+```
+loadPlugins(program)
+  │
+  ├── plugin.register(program)          ← registers custom Commander commands
+  └── pluginManager.registerHooks(      ← registers lifecycle hook listeners
+        plugin.name, plugin.hooks
+      )
+              │
+              ▼
+  Command executes (e.g. backup)
+              │
+  ┌───────────┴──────────────────────────────────────┐
+  │  await pluginManager.runHook('beforeBackup', ctx)  │
+  │  ... (core backup logic) ...                       │
+  │  await pluginManager.runHook('afterBackup', ctx)   │
+  └──────────────────────────────────────────────────┘
+```
+
+### Hook Execution Guarantees
+
+- **Sequential**: hooks run in FIFO order (first registered = first called)
+- **Awaited**: async hooks are fully awaited before continuing
+- **Isolated**: a hook that throws is caught, a warning is printed to stderr, and remaining hooks continue
+- **Non-blocking**: hook errors never crash the CLI or affect the command's return value
+
+### Available Lifecycle Hooks
+
+| Hook | Command | Context type |
+|---|---|---|
+| `init` | Startup (all commands) | `InitHookContext` |
+| `beforeBackup` / `afterBackup` | `backup` | `BackupHookContext` |
+| `beforeRestore` / `afterRestore` | `restore` | `RestoreHookContext` |
+| `onSchemaFetch` | `schema list`, `schema diff`, `schema erd` | `SchemaFetchHookContext` |
+| `onSchemaDiff` | `schema diff` | `SchemaDiffHookContext` |
+| `beforeExport` / `afterExport` | `export db` | `ExportHookContext` |
+
+### Public API
+
+| Method | Description |
+|---|---|
+| `registerHooks(name, hooks)` | Called by plugin loader after each successful plugin load |
+| `runHook(hookName, context)` | Called by commands at the appropriate lifecycle point |
+| `listenerCount(hookName)` | Returns the number of listeners (useful for testing) |
+| `_reset()` | Clears all listeners (test utility only) |
+
+See [docs/PLUGIN_AUTHORING.md](PLUGIN_AUTHORING.md) for the full plugin authoring guide.

@@ -268,7 +268,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v4.4.0 — Schema-as-Code & Database Migrations (Current)
+## ✅ v4.4.0 — Schema-as-Code & Database Migrations (Shipped)
 
 - [x] **`schema migrate:generate` (`migrate`)** — Capture and version-control schema changes into timestamped JSON files (`./migrations/<timestamp>_<name>.json`).
 - [x] **Discrete Migration Actions** — `ADD_TABLE`, `REMOVE_TABLE`, `ADD_FIELD`, `REMOVE_FIELD`, `CHANGE_FIELD_TYPE`.
@@ -277,6 +277,42 @@ This document outlines the planned features and improvements for future versions
 - [x] **Direct Live Environment Diff (`--from-env`)** — Diff between environments without touching local lockfiles.
 - [x] **`schema migrate:list` (`migrate:status`)** — Table overview of recorded migration history and lockfile health.
 - [x] **Interactive TUI Integration** — Guided migration generation, status viewer, and snapshot tools in interactive mode.
+
+---
+
+## ✅ v4.5.0 — Plugin Lifecycle Hooks (Current)
+
+- [x] **`PluginManager` singleton** (`src/utils/plugin-manager.ts`) — A centralized, typed event bus for lifecycle hooks. Separate from the plugin loader; handles hook registration and isolated async execution.
+
+- [x] **9 lifecycle hooks** covering the full CLI data flow:
+  - `init` — fires once at startup after all plugins are loaded (before command parsing)
+  - `beforeBackup` / `afterBackup` — integration points in the `backup` command
+  - `beforeRestore` / `afterRestore` — integration points in the `restore` command
+  - `onSchemaFetch` — fires after every `GET /meta/types` API call (schema list, diff, ERD, migrations)
+  - `onSchemaDiff` — fires after diff is computed in `schema diff`
+  - `beforeExport` / `afterExport` — integration points in the `export db` command
+
+- [x] **Typed hook contexts** — `BackupHookContext`, `RestoreHookContext`, `SchemaFetchHookContext`, `SchemaDiffHookContext`, `ExportHookContext`, `InitHookContext` — all strongly typed with TypeScript generics in `runHook()`
+
+- [x] **Backward compatibility** — `hooks` field on `BubbleCLIPlugin` is `Partial<CLIPluginHooks>` (fully optional); existing plugins with only `register()` continue to work without any changes
+
+- [x] **Error isolation** — hook errors are caught per-plugin, logged as `chalk.yellow` warnings to stderr, and never crash the CLI or block remaining hooks from executing
+
+- [x] **Sequential execution** — hooks run in FIFO order (first registered plugin = first called), each fully `await`-ed before the next one fires
+
+- [x] **New `./hooks` package export** — `"./hooks": "./dist/utils/plugin-manager.js"` — allows TypeScript plugin authors to import hook context types with full type safety:
+  ```ts
+  import type { BackupHookContext, CLIPluginHooks } from 'bubble-io-cli/hooks';
+  ```
+
+- [x] **24 new unit tests** in `tests/plugin-manager.test.ts` → **321 total tests passing** (18 test files)
+  - Coverage: registerHooks, runHook with zero/single/multiple listeners, async hooks, FIFO order, error isolation, warning messages, listenerCount, _reset
+
+- [x] **2 full example plugins** in `examples/`:
+  - `plugin-s3-backup/index.js` — `afterBackup` → auto-upload to S3 via AWS CLI
+  - `plugin-slack-notifier/index.js` — `afterBackup` + `afterRestore` + `onSchemaDiff` + `afterExport` → rich Slack Block Kit messages
+
+- [x] **Full documentation update**: `docs/PLUGIN_AUTHORING.md` (full rewrite), `docs/architecture.md`, `README.md` (expanded Plugin Extensibility section, new hooks table, example links), `docs/roadmap.md`
 
 ---
 

@@ -13,6 +13,7 @@ import {
   listMigrations,
   loadSchemaLockfile,
 } from '../utils/schema-migrations.js';
+import { pluginManager } from '../utils/plugin-manager.js';
 
 /**
  * Registers the `schema` sub-command with its sub-commands `list`, `diff`, and `erd`.
@@ -80,6 +81,13 @@ export function registerSchemaCommand(program: Command): void {
         }
 
         spinner?.succeed(chalk.green(`Found ${types.length} data type(s)`));
+
+        // ── onSchemaFetch hook ───────────────────────────────────────────────────────
+        await pluginManager.runHook('onSchemaFetch', {
+          appName: config.appName,
+          environment: options.env,
+          types,
+        });
 
         if (isJsonMode) {
           console.log(JSON.stringify({ success: true, app: config.appName, env: options.env, types }));
@@ -173,6 +181,14 @@ export function registerSchemaCommand(program: Command): void {
         ]);
 
         const result = diffSchemas(typesA, typesB, options.envA, options.envB);
+
+        // ── onSchemaDiff hook ────────────────────────────────────────────────────────
+        await pluginManager.runHook('onSchemaDiff', {
+          appName,
+          envA: options.envA,
+          envB: options.envB,
+          diff: result,
+        });
 
         if (result.identical) {
           spinner?.succeed(chalk.green('Schemas are identical across both environments.'));

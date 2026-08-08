@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green?style=flat-square&logo=node.js)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
-[![Tests](https://img.shields.io/badge/tests-297%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
+[![Tests](https://img.shields.io/badge/tests-321%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
 </div>
@@ -41,6 +41,9 @@ bubble-io-cli schema diff
 
 # Generate database migrations declaratively (New in v4.4.0)
 bubble-io-cli schema migrate:generate --name add_orders
+
+# Use lifecycle hooks to auto-upload backups to S3 (New in v4.5.0)
+# Place a plugin in ~/.bubble-cli/plugins/ — hooks fire automatically
 
 # Start a local mock server for offline testing
 bubble-io-cli mock --file ./backup-product.json --port 3333
@@ -1115,6 +1118,7 @@ bubble-io-cli/
 │       ├── notifications.ts       # Slack + Discord webhook dispatcher
 │       ├── pii-scanner.ts         # PII detection engine
 │       ├── plugin-loader.ts       # Plugin auto-discovery & registration
+│       ├── plugin-manager.ts      # Lifecycle hook registry (PluginManager singleton)
 │       ├── graph-resolver.ts      # DAG builder, topological sort, circular dep detection
 │       ├── relational-seeder.ts   # Sequential execution engine for relational imports
 │       ├── schema-preflight.ts    # Schema pre-flight validator for seed files
@@ -1127,7 +1131,8 @@ bubble-io-cli/
 │       └── ci-generators/
 │           └── github-actions.ts  # GitHub Actions YAML generator
 │
-└── tests/                         # Vitest unit tests (297 tests)
+└── tests/                         # Vitest unit tests (321 tests)
+    ├── plugin-manager.test.ts
     ├── schema-migrations.test.ts
     ├── interactive.test.ts
     ├── schema-preflight.test.ts
@@ -1151,6 +1156,8 @@ bubble-io-cli/
 | `AWS_SECRET_ACCESS_KEY` | `backup --destination s3://` | AWS credentials for S3 upload |
 | `AWS_REGION` | `backup --destination s3://` | AWS region for S3 upload |
 | `GOOGLE_APPLICATION_CREDENTIALS` | `backup --destination gs://` | GCP service account JSON path |
+| `S3_BACKUP_BUCKET` | `plugin-s3-backup` example | Target S3 bucket for auto-upload plugin |
+| `SLACK_WEBHOOK_URL` | `plugin-slack-notifier` example | Slack Incoming Webhook URL for notifications plugin |
 
 ---
 
@@ -1177,9 +1184,23 @@ npm test
 npm run lint
 ```
 
-## 🔌 Plugin Extensibility (v3.3.0+)
+## 🔌 Plugin Extensibility (v4.5.0+)
 
-`bubble-io-cli` supports a lightweight plugin system that allows you to extend the CLI with custom commands — without modifying the core source.
+`bubble-io-cli` supports a powerful plugin system that lets you extend the CLI in two ways:
+
+1. **Custom Commands** — Add entirely new commands to the CLI via `register(program)`
+2. **Lifecycle Hooks** — React to events from existing commands without modifying core code
+
+### Available Lifecycle Hooks
+
+| Hook | Fires when |
+|---|---|
+| `init` | CLI starts, after all plugins load |
+| `beforeBackup` / `afterBackup` | Before/after `backup` command |
+| `beforeRestore` / `afterRestore` | Before/after `restore` command |
+| `onSchemaFetch` | After `schema list` / `schema diff` / `schema erd` |
+| `onSchemaDiff` | After diff is computed in `schema diff` |
+| `beforeExport` / `afterExport` | Before/after `export db` command |
 
 ### Install a Community Plugin
 
@@ -1191,11 +1212,34 @@ npm install -g bubble-io-cli-plugin-example
 bubble-io-cli plugin ext list
 ```
 
-### Write a Local Plugin in 30 Seconds
+### Write a Hook Plugin in 60 Seconds
 
 ```bash
 mkdir -p ~/.bubble-cli/plugins
 ```
+
+Create `~/.bubble-cli/plugins/my-logger.js`:
+
+```js
+module.exports = {
+  name: 'my-logger',
+  version: '1.0.0',
+  description: 'Logs backup events to the console',
+  register(_program) {},  // no custom commands needed
+  hooks: {
+    afterBackup(ctx) {
+      console.log(`[my-logger] ✅ ${ctx.records} records backed up → ${ctx.filePath}`);
+    },
+    onSchemaDiff(ctx) {
+      if (!ctx.diff.identical) {
+        console.warn(`[my-logger] ⚠️ Schema changed between ${ctx.envA} and ${ctx.envB}`);
+      }
+    },
+  },
+};
+```
+
+### Write a Custom Command Plugin
 
 Create `~/.bubble-cli/plugins/hello.js`:
 
@@ -1225,9 +1269,16 @@ bubble-io-cli plugin ext info <name>   # Show plugin details
 bubble-io-cli plugin ext reload        # Force plugin re-discovery
 ```
 
+### Ready-to-use Examples
+
+Check out the fully functional example plugins in the `examples/` directory:
+
+- **[`examples/plugin-s3-backup/`](examples/plugin-s3-backup/index.js)** — Auto-uploads every backup file to an S3 bucket via `afterBackup`
+- **[`examples/plugin-slack-notifier/`](examples/plugin-slack-notifier/index.js)** — Sends rich Slack notifications for backup, restore, schema diff, and export events
+
 ### Write Your Own Plugin
 
-→ See the full **[Plugin Authoring Guide](docs/PLUGIN_AUTHORING.md)** for the complete interface spec, TypeScript template, publishing guide, Commander patterns, and examples.
+→ See the full **[Plugin Authoring Guide](docs/PLUGIN_AUTHORING.md)** for the complete interface spec, all hook context types, TypeScript template, publishing guide, Commander patterns, and more examples.
 
 ---
 

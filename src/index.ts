@@ -18,6 +18,7 @@ import { registerQueryCommand } from './commands/query.js';
 import { registerAuditCommand } from './commands/audit.js';
 import { registerExportCommand } from './commands/export.js';
 import { loadPlugins } from './utils/plugin-loader.js';
+import { pluginManager } from './utils/plugin-manager.js';
 
 import { runInteractiveMenu } from './cli/interactive.js';
 
@@ -29,7 +30,7 @@ program
     chalk.cyan('🫧  bubble-io-cli') +
     chalk.dim(' — A developer CLI for managing and interacting with Bubble.io applications')
   )
-  .version('4.4.0', '-v, --version', 'Output the current version')
+  .version('4.5.0', '-v, --version', 'Output the current version')
   .helpOption('-h, --help', 'Display help for command');
 
 // Register all sub-commands
@@ -53,6 +54,9 @@ registerExportCommand(program);
 (async () => {
   // Load external plugins before parsing — each plugin registers its commands
   await loadPlugins(program);
+
+  // Fire the init lifecycle hook — allows plugins to run initialization logic
+  await pluginManager.runHook('init', { program, version: '4.5.0' });
 
   // If no command/arguments provided, launch interactive TUI mode
   if (process.argv.length <= 2) {

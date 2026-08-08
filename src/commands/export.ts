@@ -7,6 +7,7 @@ import {
   getDbProvider,
   type DbProviderOptions,
 } from '../services/db-providers/index.js';
+import { pluginManager } from '../utils/plugin-manager.js';
 
 /**
  * Registers the `export` command group with its `db` sub-command.
@@ -170,6 +171,24 @@ export function registerExportCommand(program: Command): void {
         process.exit(0);
       }
 
+      // ── Build a human-readable destination string for hooks ───────────────────────
+      const hookDestination =
+        options.target === 'sqlite' ? options.db
+        : options.target === 'postgres' ? (options.connectionString ?? '').replace(/:([^@/]+)@/, ':***@')
+        : `${options.project ?? ''}.${options.dataset}`;
+
+      const exportStartTime = Date.now();
+
+      // ── beforeExport hook ────────────────────────────────────────────────────
+      await pluginManager.runHook('beforeExport', {
+        appName,
+        dataType: options.type,
+        environment: options.env,
+        target: options.target as 'sqlite' | 'postgres' | 'bigquery',
+        records: records.length,
+        destination: hookDestination,
+      });
+
       // ── Step 2: Connect to database ──────────────────────────────────────
       const connectSpinner = ora({
         text: `Connecting to ${chalk.bold(options.target)} database…`,
@@ -209,6 +228,17 @@ export function registerExportCommand(program: Command): void {
       } finally {
         await provider.disconnect().catch(() => { /* ignore disconnect errors */ });
       }
+
+      // ── afterExport hook ────────────────────────────────────────────────────
+      await pluginManager.runHook('afterExport', {
+        appName,
+        dataType: options.type,
+        environment: options.env,
+        target: options.target as 'sqlite' | 'postgres' | 'bigquery',
+        records: records.length,
+        destination: hookDestination,
+        durationMs: Date.now() - exportStartTime,
+      });
 
       // ── Summary ──────────────────────────────────────────────────────────
       console.log(chalk.green('\n✅ Export complete!'));

@@ -4,6 +4,7 @@ import { existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { homedir } from 'os';
 import { execSync } from 'child_process';
+import { pluginManager, type CLIPluginHooks } from './plugin-manager.js';
 
 // ────────────────────────────────────────────────────────────────────────────
 // Public contract — used by plugin authors
@@ -38,6 +39,20 @@ export interface BubbleCLIPlugin {
    * Use it to register new commands or extend existing sub-command groups.
    */
   register(program: Command): void;
+  /**
+   * Optional lifecycle hooks — react to events from existing CLI commands
+   * without modifying core source code.
+   *
+   * @example
+   * ```ts
+   * hooks: {
+   *   async afterBackup(ctx) {
+   *     await uploadToS3(ctx.filePath);
+   *   },
+   * }
+   * ```
+   */
+  hooks?: Partial<CLIPluginHooks>;
 }
 
 /** Successful plugin load record. */
@@ -280,6 +295,12 @@ export async function loadPlugins(
 
       // Register the plugin into the Commander program tree
       validation.plugin.register(program);
+
+      // Register any lifecycle hooks declared by this plugin
+      if (validation.plugin.hooks && typeof validation.plugin.hooks === 'object') {
+        pluginManager.registerHooks(validation.plugin.name, validation.plugin.hooks);
+      }
+
       _loaded.push({ plugin: validation.plugin, source: pluginPath });
 
     } catch (err: unknown) {

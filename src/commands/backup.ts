@@ -9,6 +9,7 @@ import { jsonToCsv } from '../utils/csv.js';
 import { encrypt } from '../utils/encryption.js';
 import { uploadToCloud } from '../utils/cloud-upload.js';
 import { dispatchNotifications } from '../utils/notifications.js';
+import { pluginManager } from '../utils/plugin-manager.js';
 
 type ExportFormat = 'json' | 'csv';
 
@@ -64,6 +65,20 @@ async function runBackupOnce(
         : `Fetching all records from ${chalk.bold(dataType)}…`;
     spinner = ora({ text: spinnerText, color: 'cyan' }).start();
   }
+
+  // ── beforeBackup hook ───────────────────────────────────────────────────────
+  // Build a preliminary context (filePath / durationMs not known yet)
+  const hookCtxBase = {
+    appName: client.app,
+    dataType,
+    environment: env,
+    filePath: '',           // populated after file write
+    records: 0,             // populated after fetch
+    format,
+    encrypted: Boolean(passphrase),
+    timestamp: new Date().toISOString(),
+  };
+  await pluginManager.runHook('beforeBackup', hookCtxBase);
 
   // ── Fetch data from Bubble API ──────────────────────────────────────────────
   const result = await client.getAllRecords(
@@ -129,7 +144,7 @@ async function runBackupOnce(
     }
   }
 
-  return {
+  const runResult: BackupRunResult = {
     file: filePath,
     records: result.totalFetched,
     type: dataType,
@@ -137,6 +152,20 @@ async function runBackupOnce(
     format,
     timestamp: new Date().toISOString(),
   };
+
+  // ── afterBackup hook ────────────────────────────────────────────────────────
+  await pluginManager.runHook('afterBackup', {
+    appName: client.app,
+    dataType,
+    environment: env,
+    filePath,
+    records: result.totalFetched,
+    format,
+    encrypted: Boolean(passphrase),
+    timestamp: runResult.timestamp,
+  });
+
+  return runResult;
 }
 
 /**

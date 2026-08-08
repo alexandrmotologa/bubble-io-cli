@@ -7,7 +7,78 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.5.0] — 2026-08-08
+
+### Added
+
+#### Plugin Lifecycle Hooks
+
+- **`PluginManager` singleton** (`src/utils/plugin-manager.ts`):
+  - Centralized, typed event bus for lifecycle hooks — separate from the plugin loader
+  - `registerHooks(pluginName, hooks)` — registers plugin hook listeners internally
+  - `runHook(hookName, context)` — executes all listeners for a given event sequentially
+  - `listenerCount(hookName)` — introspection helper (useful for testing)
+  - `_reset()` — clears all listeners (test utility only)
+  - Exported as `pluginManager` singleton (same pattern as `storage`)
+
+- **9 lifecycle hooks** across all major CLI commands:
+  - `init(ctx: InitHookContext)` — fires once at startup, after all plugins load, before command parsing; `ctx.program` + `ctx.version` available
+  - `beforeBackup(ctx: BackupHookContext)` — fires before Bubble API fetch in `backup`
+  - `afterBackup(ctx: BackupHookContext)` — fires after backup file is written (and optionally encrypted/uploaded); `ctx.durationMs` available
+  - `beforeRestore(ctx: RestoreHookContext)` — fires before records are written in `restore`
+  - `afterRestore(ctx: RestoreHookContext)` — fires after all records processed; `ctx.restoredCount` + `ctx.errors` available
+  - `onSchemaFetch(ctx: SchemaFetchHookContext)` — fires after every successful `GET /meta/types` (schema list, diff, ERD, migrations)
+  - `onSchemaDiff(ctx: SchemaDiffHookContext)` — fires after diff computed in `schema diff`; `ctx.diff` is the full `SchemaDiffResult`
+  - `beforeExport(ctx: ExportHookContext)` — fires before database connection in `export db`
+  - `afterExport(ctx: ExportHookContext)` — fires after records written to target database; `ctx.durationMs` available
+
+- **Extended `BubbleCLIPlugin` interface** in `src/utils/plugin-loader.ts`:
+  - New optional `hooks?: Partial<CLIPluginHooks>` field — backward compatible; existing plugins work unchanged
+  - Plugin loader automatically calls `pluginManager.registerHooks(plugin.name, plugin.hooks)` after each successful plugin load
+
+- **New `./hooks` package export** in `package.json`:
+  - `"./hooks": "./dist/utils/plugin-manager.js"` — TypeScript plugin authors can import context types:
+    ```ts
+    import type { BackupHookContext, CLIPluginHooks } from 'bubble-io-cli/hooks';
+    ```
+
+- **2 full example plugins** in `examples/`:
+  - `examples/plugin-s3-backup/index.js` — demonstrates `afterBackup` to auto-upload backups to S3 via AWS CLI (uses `S3_BACKUP_BUCKET` env var)
+  - `examples/plugin-slack-notifier/index.js` — demonstrates `afterBackup`, `afterRestore`, `onSchemaDiff`, `afterExport` sending rich Slack Block Kit messages (uses `SLACK_WEBHOOK_URL` env var)
+
+- **24 new unit tests** in `tests/plugin-manager.test.ts` → **321 total tests passing** (18 test files):
+  - Covers: registerHooks, runHook (zero/single/multiple listeners), async hooks, FIFO ordering, error isolation, warning message format, listenerCount, _reset, init hook
+
+#### Documentation
+
+- **`docs/PLUGIN_AUTHORING.md`** — Complete rewrite with expanded lifecycle hooks section:
+  - All 9 hooks documented with context type signatures and JSDoc
+  - TypeScript plugin template with typed imports
+  - Best practices table for hook authors
+  - Cross-links to both example plugins
+- **`docs/architecture.md`** — Added `plugin-manager.ts` to Utility Layer diagram; new dedicated section "Plugin Lifecycle Hook System" with ASCII flow diagram, execution guarantees, and public API table
+- **`README.md`** — Plugin Extensibility section expanded with hooks table, hook plugin example, links to examples; test badge updated to 321; file tree updated; env vars table expanded
+- **`docs/roadmap.md`** — v4.4.0 marked as Shipped; v4.5.0 entry added as Current
+
+### Changed
+
+- `package.json`: version bumped to `4.5.0`
+- `src/index.ts`: version string updated to `4.5.0`; `pluginManager.runHook('init', ...)` called after `loadPlugins()`
+- `src/commands/backup.ts`: `pluginManager` imported; `beforeBackup` fired before fetch, `afterBackup` fired after file write
+- `src/commands/restore.ts`: `pluginManager` imported; `beforeRestore` fired before processing loop, `afterRestore` fired after spinner settles
+- `src/commands/schema.ts`: `pluginManager` imported; `onSchemaFetch` fired in `schema list`; `onSchemaDiff` fired in `schema diff`
+- `src/commands/export.ts`: `pluginManager` imported; `beforeExport` fired before DB connection, `afterExport` fired after successful upsert with `durationMs`
+- `src/utils/plugin-loader.ts`: imports `pluginManager` and `CLIPluginHooks`; calls `pluginManager.registerHooks()` for every successfully loaded plugin; `BubbleCLIPlugin` interface extended with `hooks?: Partial<CLIPluginHooks>`
+
+### Notes
+
+- **No breaking changes** — all hook fields are optional; plugins without hooks continue to work exactly as before
+- Hook execution **never** blocks or modifies the primary command result; hook errors are isolated and logged as warnings
+
+---
+
 ## [4.4.0] — 2026-08-08
+
 
 ### Added
 
