@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.3.0] — 2026-08-08
+
+### Added
+
+#### Interactive CLI Mode (TUI) — Guided Terminal Experience
+
+- **Interactive Guided Mode**: Running `bubble-io-cli` with no arguments now launches an interactive Terminal User Interface (TUI) powered by `@clack/prompts`.
+- **Categorized Menu Navigation**:
+  - 📐 **Schema Operations**: List app schema, generate schema diffs between environments, export Mermaid.js ERD diagrams.
+  - 💾 **Data Operations**: Create backups, restore data with dry-run support, diff live data against local backups, seed relational datasets, interactive REPL query session, export to external databases (SQLite, PostgreSQL, BigQuery).
+  - 🧬 **Code & Type Generation**: Generate TypeScript `.d.ts` definitions from live schema, scaffold integration templates (plugin actions, API connectors, webhooks), create GitHub Actions CI/CD workflows.
+  - 🛠️ **Developer Tools**: PII security and compliance audit, API connectivity & latency health check, local offline mock server, trigger backend workflows, plugin management, shell completions.
+  - ⚙️ **Profiles & Configuration**: View, list, switch, add/update, or clear credential profiles.
+- **Defensive UX & Graceful Exit**: Clean cancellation handling (`Ctrl+C` / `Esc`) at every prompt step with zero unhandled stack traces.
+- **100% Backward Compatible**: All direct CLI commands with flags continue to function unchanged.
+
+---
+
 ## [4.2.0] — 2026-08-08
 
 ### Added

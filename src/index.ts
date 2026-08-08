@@ -19,6 +19,8 @@ import { registerAuditCommand } from './commands/audit.js';
 import { registerExportCommand } from './commands/export.js';
 import { loadPlugins } from './utils/plugin-loader.js';
 
+import { runInteractiveMenu } from './cli/interactive.js';
+
 const program = new Command();
 
 program
@@ -27,7 +29,7 @@ program
     chalk.cyan('🫧  bubble-io-cli') +
     chalk.dim(' — A developer CLI for managing and interacting with Bubble.io applications')
   )
-  .version('4.2.0', '-v, --version', 'Output the current version')
+  .version('4.3.0', '-v, --version', 'Output the current version')
   .helpOption('-h, --help', 'Display help for command');
 
 // Register all sub-commands
@@ -47,16 +49,22 @@ registerQueryCommand(program);
 registerAuditCommand(program);
 registerExportCommand(program);
 
-// Show help if no command provided
-if (process.argv.length <= 2) {
-  program.outputHelp();
-  process.exit(0);
-}
-
 // Wrap in an async IIFE — CommonJS module target does not support top-level await
 (async () => {
   // Load external plugins before parsing — each plugin registers its commands
   await loadPlugins(program);
+
+  // If no command/arguments provided, launch interactive TUI mode
+  if (process.argv.length <= 2) {
+    try {
+      await runInteractiveMenu(program);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      console.error(chalk.red(`\n❌ Unexpected error: ${message}\n`));
+      process.exit(1);
+    }
+    return;
+  }
 
   program.parseAsync(process.argv).catch((error: unknown) => {
     const message = error instanceof Error ? error.message : String(error);

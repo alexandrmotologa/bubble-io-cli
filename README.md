@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green?style=flat-square&logo=node.js)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
-[![Tests](https://img.shields.io/badge/tests-226%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
+[![Tests](https://img.shields.io/badge/tests-278%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
 </div>
@@ -20,10 +20,11 @@
 `bubble-io-cli` brings your Bubble.io application to the terminal. Instead of navigating the Bubble dashboard to export data or manage configurations, you can now automate these workflows directly from the command line — perfect for **CI/CD pipelines**, **scheduled backups**, **developer tooling**, and **no-code + code hybrid workflows**.
 
 ```bash
-# Install globally
-npm install -g bubble-io-cli
+# Launch the Interactive Terminal UI (TUI) — No complex arguments needed!
+bubble-io-cli
 
-# Configure once
+# Or run direct commands:
+# Configure credentials
 bubble-io-cli config --app my-cool-app --key YOUR_BUBBLE_API_KEY
 
 # Back up any data type instantly
@@ -61,6 +62,40 @@ npm install -g bubble-io-cli
 # Or use directly without installing
 npx bubble-io-cli --help
 ```
+
+---
+
+## 🎮 Interactive Mode (TUI)
+
+Don't want to remember command-line arguments and flags? Run `bubble-io-cli` with **no arguments** to launch the beautiful, interactive Terminal User Interface (TUI):
+
+```bash
+bubble-io-cli
+```
+
+```text
+┌  🫧  Bubble.io CLI — Interactive Mode
+│
+◇  Active Environment
+│  Profile: default
+│  App:     my-cool-app.bubbleapps.io
+│  API Key: ********************1234
+│
+?  What would you like to do?
+│  ● 📐 Schema Operations (List, Diff, ERD diagram)
+│  ○ 💾 Data Operations (Backup, Restore, Diff, Seed, REPL Query, DB Export)
+│  ○ 🧬 Code & Type Generation (TypeScript interfaces, Templates, CI/CD)
+│  ○ 🛠️  Developer Tools (PII Audit, Health check, Mock server, Workflows)
+│  ○ ⚙️  Profiles & Credentials (Manage saved apps and API keys)
+│  ○ ❌ Exit
+└
+```
+
+### Key Highlights of Interactive Mode
+- **Zero-setup Discovery**: Guided prompts for data types, environments (`version-test` vs `version-live`), output formats, and paths.
+- **Smart Credential Management**: Displays your active profile, subdomain, and masked API key on entry. If no profile exists, prompts to set one up on the spot.
+- **Continuous Workflow**: Automatically asks if you'd like to perform another action after completing a task without re-running the command.
+- **Safe Exit & Cancellation**: Press `Ctrl+C` or `Esc` at any prompt step to gracefully cancel without stack traces.
 
 ---
 
@@ -971,17 +1006,18 @@ bubble-io-cli completions --fish > ~/.config/fish/completions/bubble-io-cli.fish
 bubble-io-cli/
 ├── src/
 │   ├── index.ts                   # CLI entry point — registers all commands
-│   ├── commands/                  # Thin action handlers (UX only)
-│   │   ├── config.ts              # config — credentials & profiles
-│   │   ├── backup.ts              # backup — export with full options
-│   │   ├── restore.ts             # restore — bulk upload from file
-│   │   ├── seed.ts                # seed — relational & legacy data import
-│   │   ├── diff.ts                # diff — compare live vs local
-│   │   ├── health.ts              # health — API connectivity check
-│   │   ├── schema.ts              # schema list / schema diff / schema erd
-│   │   ├── workflow.ts            # workflow trigger
-│   │   ├── seed.ts                # seed — bulk create from fixtures
-│   │   ├── mock.ts                # mock — local development server
+│   ├── cli/                       # Interactive Terminal UI (TUI)
+│   │   └── interactive.ts         # @clack/prompts interactive menu and sub-menu flows
+│   ├── commands/                  # Command definitions (CLI Layer)
+│   │   ├── config.ts              # config — credential storage
+│   │   ├── backup.ts              # backup — export records
+│   │   ├── restore.ts             # restore — upload records
+│   │   ├── diff.ts                # diff — compare local vs remote
+│   │   ├── health.ts              # health — ping API
+│   │   ├── schema.ts              # schema list / diff / erd
+│   │   ├── workflow.ts            # workflow trigger — backend workflows
+│   │   ├── seed.ts                # seed — relational import & graph execution
+│   │   ├── mock.ts                # mock — local API server
 │   │   ├── plugin.ts              # plugin list / get / deploy
 │   │   ├── generate.ts            # generate (templates) / generate types / generate ci
 │   │   ├── export.ts              # export db — database export (SQLite/PostgreSQL/BigQuery)
@@ -1006,6 +1042,7 @@ bubble-io-cli/
 │       ├── plugin-loader.ts       # Plugin auto-discovery & registration
 │       ├── graph-resolver.ts      # DAG builder, topological sort, circular dep detection
 │       ├── relational-seeder.ts   # Sequential execution engine for relational imports
+│       ├── schema-preflight.ts    # Schema pre-flight validator for seed files
 │       ├── schema-diff.ts         # Schema diffing engine
 │       ├── schema-erd.ts          # Mermaid ERD generator
 │       ├── type-generator.ts      # TypeScript interface generator

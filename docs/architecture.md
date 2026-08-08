@@ -11,8 +11,9 @@ This document describes the internal structure, design decisions, and command fl
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    CLI Layer (User-facing)                       │
-│   src/index.ts  ──►  src/commands/*.ts                          │
-│   Commander routing, spinners (ora), colors (chalk)             │
+│   src/index.ts  ──┬─► [no args] ──► src/cli/interactive.ts      │
+│                   └─► [args]    ──► src/commands/*.ts           │
+│   Commander routing, @clack/prompts TUI, spinners, chalk        │
 └─────────────────────────────┬───────────────────────────────────┘
                               │ calls
 ┌─────────────────────────────▼───────────────────────────────────┐
@@ -59,6 +60,13 @@ Each file in `src/commands/` maps to one CLI sub-command (or sub-command group) 
 - Formatting output with `chalk`
 - Delegating to the **Service Layer** or **Utility Layer**
 - Setting correct `process.exit` codes on failure
+
+### Interactive TUI Entry (`src/cli/interactive.ts`)
+When invoked without positional or optional arguments (`process.argv.length <= 2`), `src/index.ts` routes directly to `runInteractiveMenu(program)`.
+- Powered by `@clack/prompts` for high-fidelity interactive prompts (select, text, password, confirm, spinners, notes).
+- Modular sub-menu handlers (`handleSchemaMenu`, `handleDataMenu`, `handleGenerateMenu`, `handleDevToolsMenu`, `handleConfigMenu`).
+- Delegates execution to the Commander root instance by calling `program.parseAsync(['node', 'bubble-io-cli', ...args])`.
+- Handles cancellation signals (`isCancel`) cleanly without leaving unhandled promise rejections.
 
 ### Command inventory
 

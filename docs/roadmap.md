@@ -216,7 +216,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v4.1.0 — Relational Data Import / Graph Seed (Current)
+## ✅ v4.1.0 — Relational Data Import / Graph Seed (Shipped)
 
 - [x] **`seed` command upgraded** — now supports a new multi-type relational JSON format with automatic dependency resolution alongside the original legacy format. Format is auto-detected; no flags needed.
 
@@ -242,6 +242,29 @@ This document outlines the planned features and improvements for future versions
 - [x] **Full backward compatibility** — legacy `{ "type": "...", "records": [...] }` format unchanged
 - [x] **Example file** — `examples/relational-seed.json` demonstrates 4-level relational dataset with circular refs
 - [x] `src/commands/seed.ts` — auto-routes between legacy and relational engines
+
+---
+
+## ✅ v4.2.0 — Schema Pre-Flight Validation (Shipped)
+
+- [x] **`seed --check-schema`** — Pre-flight validation against live Bubble schema (`GET /meta/types`) before making any write calls.
+- [x] **Relational Type Inference**: Checks `@ref` resolution, field types, and missing types/fields.
+- [x] **New module `src/utils/schema-preflight.ts`** — Pure TypeScript validator and human-readable terminal formatter.
+
+---
+
+## ✅ v4.3.0 — Interactive CLI Mode (TUI) (Current)
+
+- [x] **Interactive Guided Experience** (`bubble-io-cli` with no arguments) — Launches full terminal UI wizard with `@clack/prompts`.
+- [x] **Categorized Menu Navigation**:
+  - 📐 **Schema Operations**: List schema, diff between environments, export Mermaid.js ERD.
+  - 💾 **Data Operations**: Backup, restore, live diff, relational seed, query REPL, database export.
+  - 🧬 **Code & Type Generation**: TypeScript types, plugin/API/webhook scaffolds, CI/CD workflows.
+  - 🛠️ **Developer Tools**: PII security audit, API health check, mock server, trigger backend workflows, plugin manager, shell completions.
+  - ⚙️ **Profiles & Configuration**: View, list, switch, add/update, or clear credential profiles.
+- [x] **Seamless command delegation**: Executes Commander actions without subshell overhead.
+- [x] **Graceful exit and cancellation**: `Ctrl+C` / `Esc` handled cleanly across all prompt layers.
+- [x] **Comprehensive unit test coverage**: Full vitest suite for interactive flows.
 
 ---
 
