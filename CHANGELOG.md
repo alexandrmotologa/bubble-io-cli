@@ -11,6 +11,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+#### Network Error Handling & Retry Logic
+
+- **`withRetry` utility** (`src/utils/retry.ts`):
+  - Intelligent automatic retries with exponential backoff and jitter (±25%).
+  - Retries trigger only on network drops (e.g. `ECONNRESET`), timeouts, Rate Limits (429), and Server Errors (5xx).
+  - Client errors (4xx) fail immediately.
+- Integrated `withRetry` directly into all `BubbleApiClient` data methods and `BubbleMetaClient.getDataTypes()` to protect long-running CLI tasks (backups, restores) against transient network issues.
+- **Per-Page Pagination Scope**: When fetching large datasets via `getAllRecords`, the retry logic is now scoped to the individual HTTP page request. A failure on page 50 will no longer restart the entire extraction process, saving time and bandwidth.
+
+#### CI Generator Enhancements
+
+- **`generate ci` enhancements**:
+  - Added `--dry-run` to preview the generated workflow yaml in console.
+  - Added `--force` to overwrite existing workflow files.
+  - Added support for multiple data types via comma-separated list (`--type User,Product`).
+  - Added `--provider gitlab` to generate `.gitlab-ci.yml` pipeline files.
+- **GitHub Actions Generator** (`src/utils/ci-generators/github-actions.ts`):
+  - Now outputs a matrix strategy when multiple data types are provided to back them up in parallel.
+- **GitLab CI Generator** (`src/utils/ci-generators/gitlab-ci.ts`):
+  - Added new generator for GitLab CI/CD pipelines including parallel matrix support for multiple data types.
+
 #### Plugin Lifecycle Hooks
 
 - **`PluginManager` singleton** (`src/utils/plugin-manager.ts`):

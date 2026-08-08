@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { withRetry } from '../utils/retry.js';
 
 /**
  * A single field definition from the Bubble Meta API.
@@ -74,24 +75,26 @@ export class BubbleMetaClient {
    * Fetch all data types and their field definitions from the Bubble Meta API.
    */
   async getDataTypes(): Promise<BubbleDataType[]> {
-    const response = await this.client.get<MetaApiResponse>('');
-    const typesObj = response.data.types;
-    if (!typesObj || typeof typesObj !== 'object') return [];
+    return withRetry(async () => {
+      const response = await this.client.get<MetaApiResponse>('');
+      const typesObj = response.data.types;
+      if (!typesObj || typeof typesObj !== 'object') return [];
 
-    return Object.entries(typesObj).map(([typeId, typeDef]) => {
-      const fieldsObj = typeDef.fields || {};
-      const fields: BubbleField[] = Object.entries(fieldsObj).map(([fieldId, fieldDef]) => ({
-        id: fieldId,
-        display: fieldDef.display || fieldId,
-        type: fieldDef.type || 'text',
-        optionList: fieldDef.optionList
-      }));
+      return Object.entries(typesObj).map(([typeId, typeDef]) => {
+        const fieldsObj = typeDef.fields || {};
+        const fields: BubbleField[] = Object.entries(fieldsObj).map(([fieldId, fieldDef]) => ({
+          id: fieldId,
+          display: fieldDef.display || fieldId,
+          type: fieldDef.type || 'text',
+          optionList: fieldDef.optionList
+        }));
 
-      return {
-        id: typeId,
-        display: typeDef.display || typeId,
-        fields
-      };
+        return {
+          id: typeId,
+          display: typeDef.display || typeId,
+          fields
+        };
+      });
     });
   }
 

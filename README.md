@@ -672,24 +672,30 @@ bubble-io-cli generate --template data-trigger --name OrderCreated --output ./we
 
 ---
 
-### `generate ci` — GitHub Actions CI/CD Generator (New in v4.0.0)
+### `generate ci` — CI/CD Pipeline Generator (New in v4.0.0, Enhanced in v4.5.0)
 
-Generate a production-ready GitHub Actions workflow file that automatically backs up your Bubble data every night. One command, zero manual YAML editing.
+Generate a production-ready GitHub Actions or GitLab CI workflow file that automatically backs up your Bubble data every night. One command, zero manual YAML editing.
 
 ```bash
 # Generate with all defaults (backs up User type, runs at 03:00 UTC, 30-day retention)
 bubble-io-cli generate ci --provider github
 
+# Generate for multiple types (uses matrix strategy to run in parallel)
+bubble-io-cli generate ci --provider github --type User,Product,Order
+
+# Generate a GitLab CI pipeline
+bubble-io-cli generate ci --provider gitlab --type User,Product
+
 # Customize for a specific type, schedule, and retention period
 bubble-io-cli generate ci --provider github \
-  --type Order \
-  --cron "0 2 * * *" \
-  --retention 60 \
+  --type User \
+  --env version-live \
+  --cron "0 1 * * *" \
+  --retention 14 \
   --format json
 
-# Pin a specific CLI version in the workflow (recommended for reproducibility)
-bubble-io-cli generate ci --provider github \
-  --cli-version 4.0.0 \
+# Preview what would be generated without writing to disk
+bubble-io-cli generate ci --provider gitlab --type Product --format csv --dry-run --cli-version 4.0.0 \
   --output .github/workflows
 
 # Export to CSV instead of JSON

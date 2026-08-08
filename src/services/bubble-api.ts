@@ -1,4 +1,5 @@
 import axios, { AxiosInstance, AxiosError } from 'axios';
+import { withRetry } from '../utils/retry.js';
 
 /**
  * Bubble API pagination cursor response envelope.
@@ -125,13 +126,17 @@ export class BubbleApiClient {
       const remaining_quota = maxRecords !== undefined ? maxRecords - allResults.length : pageSize;
       const limit = Math.min(pageSize, remaining_quota);
 
-      const response = await this.client.get<{ response: BubbleApiResponse<T> }>(`/${typeName}`, {
-        params: {
-          cursor,
-          limit,
-          ...(constraintsParam && { constraints: constraintsParam }),
-        },
-      });
+      // Retry is scoped to each individual page request, so a transient failure
+      // does not restart pagination from scratch.
+      const response = await withRetry(() =>
+        this.client.get<{ response: BubbleApiResponse<T> }>(`/${typeName}`, {
+          params: {
+            cursor,
+            limit,
+            ...(constraintsParam && { constraints: constraintsParam }),
+          },
+        })
+      );
 
       const { results, remaining } = response.data.response;
       allResults.push(...results);
@@ -156,17 +161,19 @@ export class BubbleApiClient {
     limit: number = 100,
     constraints?: BubbleConstraint[]
   ): Promise<BubbleApiResponse<T>> {
-    const constraintsParam =
-      constraints && constraints.length > 0 ? JSON.stringify(constraints) : undefined;
+    return withRetry(async () => {
+      const constraintsParam =
+        constraints && constraints.length > 0 ? JSON.stringify(constraints) : undefined;
 
-    const response = await this.client.get<{ response: BubbleApiResponse<T> }>(`/${typeName}`, {
-      params: {
-        cursor,
-        limit,
-        ...(constraintsParam && { constraints: constraintsParam }),
-      },
+      const response = await this.client.get<{ response: BubbleApiResponse<T> }>(`/${typeName}`, {
+        params: {
+          cursor,
+          limit,
+          ...(constraintsParam && { constraints: constraintsParam }),
+        },
+      });
+      return response.data.response;
     });
-    return response.data.response;
   }
 
   /**
@@ -177,8 +184,10 @@ export class BubbleApiClient {
     typeName: string,
     data: Record<string, unknown>
   ): Promise<CreateResult> {
-    const response = await this.client.post<{ id: string }>(`/${typeName}`, data);
-    return { id: response.data.id };
+    return withRetry(async () => {
+      const response = await this.client.post<{ id: string }>(`/${typeName}`, data);
+      return { id: response.data.id };
+    });
   }
 
   /**
@@ -189,14 +198,18 @@ export class BubbleApiClient {
     id: string,
     data: Record<string, unknown>
   ): Promise<void> {
-    await this.client.patch(`/${typeName}/${id}`, data);
+    return withRetry(async () => {
+      await this.client.patch(`/${typeName}/${id}`, data);
+    });
   }
 
   /**
    * Delete an existing record by its Bubble ID.
    */
   async deleteRecord(typeName: string, id: string): Promise<void> {
-    await this.client.delete(`/${typeName}/${id}`);
+    return withRetry(async () => {
+      await this.client.delete(`/${typeName}/${id}`);
+    });
   }
 
   /**
@@ -208,12 +221,14 @@ export class BubbleApiClient {
     workflowName: string,
     data: Record<string, unknown> = {}
   ): Promise<unknown> {
-    // Bubble workflow endpoint is at a different base path (/wf/) not /obj/
-    const baseUrl = `https://${this.appName}.bubbleapps.io/${this.environment}/api/1.1/wf`;
-    const response = await this.client.post(`${baseUrl}/${workflowName}`, data, {
-      baseURL: '', // override the /obj/ base to use absolute URL
+    return withRetry(async () => {
+      // Bubble workflow endpoint is at a different base path (/wf/) not /obj/
+      const baseUrl = `https://${this.appName}.bubbleapps.io/${this.environment}/api/1.1/wf`;
+      const response = await this.client.post(`${baseUrl}/${workflowName}`, data, {
+        baseURL: '', // override the /obj/ base to use absolute URL
+      });
+      return response.data;
     });
-    return response.data;
   }
 
   /**
@@ -221,8 +236,10 @@ export class BubbleApiClient {
    */
   async ping(typeName: string = 'User'): Promise<boolean> {
     try {
-      await this.client.get(`/${typeName}`, { params: { limit: 1 } });
-      return true;
+      return await withRetry(async () => {
+        await this.client.get(`/${typeName}`, { params: { limit: 1 } });
+        return true;
+      });
     } catch {
       return false;
     }

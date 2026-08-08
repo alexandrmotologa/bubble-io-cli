@@ -8,6 +8,7 @@ import { storage } from '../utils/storage.js';
 import { BubbleMetaClient } from '../services/bubble-meta.js';
 import { generateTypeFile } from '../utils/type-generator.js';
 import { generateGitHubActionsWorkflow } from '../utils/ci-generators/github-actions.js';
+import { generateGitLabCIWorkflow } from '../utils/ci-generators/gitlab-ci.js';
 
 /**
  * Available code generation templates for Bubble plugin integrations.
@@ -215,14 +216,16 @@ export function registerGenerateCommand(program: Command): void {
   generate
     .command('ci')
     .description('Generate a CI/CD workflow file for automated nightly Bubble backups')
-    .requiredOption('--provider <name>', 'CI/CD provider to target (currently supported: github)')
-    .option('-t, --type <datatype>', 'Bubble data type to back up in the workflow', 'User')
+    .requiredOption('--provider <name>', 'CI/CD provider to target (supported: github, gitlab)')
+    .option('-t, --type <datatype>', 'Bubble data type(s) to back up, comma-separated', 'User')
     .option('-e, --env <environment>', 'Bubble environment used in the workflow', 'version-live')
     .option('--cron <expression>', 'Cron expression (UTC) for the backup schedule', '0 3 * * *')
-    .option('--retention <days>', 'Artifact retention in days (GitHub)', '30')
+    .option('--retention <days>', 'Artifact retention in days', '30')
     .option('-f, --format <type>', 'Backup format: json or csv', 'json')
     .option('--cli-version <version>', 'bubble-io-cli version to pin in the workflow', 'latest')
-    .option('-o, --output <dir>', 'Output directory for the generated workflow file', '.github/workflows')
+    .option('-o, --output <dir>', 'Output directory for the generated workflow file (default: .github/workflows or .gitlab-ci.yml)')
+    .option('--dry-run', 'Print the generated workflow to the console without saving to disk')
+    .option('--force', 'Overwrite the workflow file if it already exists')
     .action(async (options: {
       provider: string;
       type: string;
@@ -231,10 +234,12 @@ export function registerGenerateCommand(program: Command): void {
       retention: string;
       format: string;
       cliVersion: string;
-      output: string;
+      output?: string;
+      dryRun?: boolean;
+      force?: boolean;
     }) => {
       // ── Validate provider ────────────────────────────────────────────────
-      const supportedProviders = ['github'];
+      const supportedProviders = ['github', 'gitlab'];
       if (!supportedProviders.includes(options.provider)) {
         console.error(
           chalk.red(`❌ Unsupported provider "${options.provider}".\n`) +
@@ -262,42 +267,82 @@ export function registerGenerateCommand(program: Command): void {
         process.exit(1);
       }
 
+      const isGithub = options.provider === 'github';
+      const defaultOutput = isGithub ? '.github/workflows' : '.';
+      const outputDir = options.output ?? defaultOutput;
+      const fileName = isGithub ? 'bubble-backup.yml' : '.gitlab-ci.yml';
+      const outputFile = join(outputDir, fileName);
+      const providerName = isGithub ? 'GitHub Actions' : 'GitLab CI';
+
       const spinner = ora(
-        `Generating ${chalk.bold('GitHub Actions')} workflow for ${chalk.cyan(options.type)} backups…`
+        `Generating ${chalk.bold(providerName)} workflow for ${chalk.cyan(options.type)} backups…`
       ).start();
 
       try {
-        // ── Ensure output directory exists ──────────────────────────────────
-        await mkdir(options.output, { recursive: true });
-
         // ── Generate YAML content ───────────────────────────────────────────
-        const yaml = generateGitHubActionsWorkflow({
-          dataType: options.type,
-          env: options.env,
-          cron: options.cron,
-          retentionDays,
-          format: options.format as 'json' | 'csv',
-          cliVersion: options.cliVersion,
-        });
+        let yaml = '';
+        if (isGithub) {
+          yaml = generateGitHubActionsWorkflow({
+            dataType: options.type,
+            env: options.env,
+            cron: options.cron,
+            retentionDays,
+            format: options.format as 'json' | 'csv',
+            cliVersion: options.cliVersion,
+          });
+        } else {
+          yaml = generateGitLabCIWorkflow({
+            dataType: options.type,
+            env: options.env,
+            retentionDays,
+            format: options.format as 'json' | 'csv',
+            cliVersion: options.cliVersion,
+          });
+        }
 
-        const outputFile = join(options.output, 'bubble-backup.yml');
+        if (options.dryRun) {
+          spinner.succeed(chalk.green(`Dry run: ${providerName} workflow generated:`));
+          console.log(`\n${yaml}\n`);
+          return;
+        }
+
+        if (existsSync(outputFile) && !options.force) {
+          spinner.fail(chalk.red('Workflow file already exists'));
+          console.error(
+            chalk.red(`\n❌ File ${outputFile} already exists.\n`) +
+            chalk.dim(`   Use --force to overwrite it.\n`)
+          );
+          process.exit(1);
+        }
+
+        // ── Ensure output directory exists ──────────────────────────────────
+        await mkdir(outputDir, { recursive: true });
         await writeFile(outputFile, yaml, 'utf-8');
 
         spinner.succeed(
-          chalk.green('Generated GitHub Actions workflow → ') + chalk.cyan(outputFile)
+          chalk.green(`Generated ${providerName} workflow → `) + chalk.cyan(outputFile)
         );
 
         console.log();
-        console.log(`   ${chalk.bold('Schedule:  ')} ${chalk.cyan(options.cron)} (UTC)`);
+        if (isGithub) {
+          console.log(`   ${chalk.bold('Schedule:  ')} ${chalk.cyan(options.cron)} (UTC)`);
+        }
         console.log(`   ${chalk.bold('Type:      ')} ${chalk.cyan(options.type)}`);
         console.log(`   ${chalk.bold('Env:       ')} ${chalk.cyan(options.env)}`);
         console.log(`   ${chalk.bold('Format:    ')} ${chalk.cyan(options.format)}`);
         console.log(`   ${chalk.bold('Retention: ')} ${chalk.cyan(`${options.retention} days`)}`);
         console.log(`   ${chalk.bold('CLI ver:   ')} ${chalk.cyan(options.cliVersion)}`);
         console.log();
-        console.log(chalk.yellow('  ⚠  Required GitHub Secrets (Settings → Secrets → Actions):'));
-        console.log(chalk.dim('     BUBBLE_APP_NAME  — your Bubble app name'));
-        console.log(chalk.dim('     BUBBLE_API_KEY   — your Bubble Data API key'));
+
+        if (isGithub) {
+          console.log(chalk.yellow('  ⚠  Required GitHub Secrets (Settings → Secrets → Actions):'));
+          console.log(chalk.dim('     BUBBLE_APP_NAME  — your Bubble app name'));
+          console.log(chalk.dim('     BUBBLE_API_KEY   — your Bubble Data API key'));
+        } else {
+          console.log(chalk.yellow('  ⚠  Required GitLab CI/CD Variables (Settings → CI/CD → Variables):'));
+          console.log(chalk.dim('     BUBBLE_APP_NAME  — your Bubble app name'));
+          console.log(chalk.dim('     BUBBLE_API_KEY   — your Bubble Data API key (Masked)'));
+        }
         console.log();
         console.log(chalk.dim('  Tip: commit and push the workflow file to trigger on schedule.'));
         console.log();
