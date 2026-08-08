@@ -23,7 +23,14 @@ export interface BubbleDataType {
  * Response envelope from the Bubble Meta API /types endpoint.
  */
 interface MetaApiResponse {
-  types: BubbleDataType[];
+  types: Record<string, {
+    display: string;
+    fields: Record<string, {
+      display: string;
+      type: string;
+      optionList?: string;
+    }>;
+  }>;
 }
 
 /**
@@ -67,8 +74,25 @@ export class BubbleMetaClient {
    * Fetch all data types and their field definitions from the Bubble Meta API.
    */
   async getDataTypes(): Promise<BubbleDataType[]> {
-    const response = await this.client.get<MetaApiResponse>('/types');
-    return response.data.types ?? [];
+    const response = await this.client.get<MetaApiResponse>('');
+    const typesObj = response.data.types;
+    if (!typesObj || typeof typesObj !== 'object') return [];
+
+    return Object.entries(typesObj).map(([typeId, typeDef]) => {
+      const fieldsObj = typeDef.fields || {};
+      const fields: BubbleField[] = Object.entries(fieldsObj).map(([fieldId, fieldDef]) => ({
+        id: fieldId,
+        display: fieldDef.display || fieldId,
+        type: fieldDef.type || 'text',
+        optionList: fieldDef.optionList
+      }));
+
+      return {
+        id: typeId,
+        display: typeDef.display || typeId,
+        fields
+      };
+    });
   }
 
   /** The Bubble app subdomain this client is connected to. */
