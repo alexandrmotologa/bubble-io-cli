@@ -103,7 +103,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v3.0.0 — TypeScript Type Safety (Current)
+## ✅ v3.0.0 — TypeScript Type Safety (Shipped)
 
 - [x] **`generate types` command** — Automatically generate TypeScript interfaces from your live Bubble schema
   - Fetches data types via the Bubble Meta API and maps each field to its TypeScript equivalent
@@ -122,7 +122,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v3.1.0 — Interactive REPL / Query Mode (Current)
+## ✅ v3.1.0 — Interactive REPL / Query Mode (Shipped)
 
 - [x] **`query` command** — Fully interactive terminal session for searching and browsing Bubble records
   - **Type selection menu** — Numbered list of all data types fetched live from the Meta API
@@ -141,7 +141,7 @@ This document outlines the planned features and improvements for future versions
 
 ---
 
-## ✅ v3.2.0 — PII & Privacy Security Audit (Current)
+## ✅ v3.2.0 — PII & Privacy Security Audit (Shipped)
 
 - [x] **`audit privacy` command** — Scan Bubble schema or local backup files for exposed PII and privacy risks
   - **Dual scan modes**: Remote schema (live Meta API) + local backup JSON file (`--file`)
@@ -159,6 +159,60 @@ This document outlines the planned features and improvements for future versions
 - [x] `src/utils/pii-scanner.ts` — Pure deterministic engine (`scanTypes`, `scanSchema`, `scanBackupFile`, `PII_PATTERNS`)
 - [x] **Infrastructure**: Vitest upgraded to `^4.0.0` for Node.js v24 compatibility; `vitest.config.mjs` created
 - [x] 40 new unit tests → **226 total tests passing** (12 test files)
+
+---
+
+## ✅ v3.3.0 — Plugin Extensibility (Shipped)
+
+- [x] **Plugin system** — Extend the CLI with external npm packages or local scripts
+  - Auto-discovery of `bubble-io-cli-plugin-*` npm packages
+  - Local plugin loading from `~/.bubble-cli/plugins/`
+  - `plugin ext list` / `plugin ext info` / `plugin ext reload`
+  - Full TypeScript plugin authoring guide in `docs/PLUGIN_AUTHORING.md`
+- [x] `src/utils/plugin-loader.ts` — Dynamic plugin discovery and registration
+- [x] Published `v3.3.1` patch with build and dependency fixes
+
+---
+
+## ✅ v4.0.0 — CI/CD Automation + Database Integrations (Current)
+
+- [x] **`generate ci --provider github`** — Instant GitHub Actions workflow generator
+  - Generates `.github/workflows/bubble-backup.yml` with zero manual YAML editing
+  - Nightly cron schedule (configurable), `workflow_dispatch` for manual runs
+  - Installs `bubble-io-cli` from npm (latest or pinned version)
+  - Reads credentials from GitHub Secrets (`BUBBLE_APP_NAME`, `BUBBLE_API_KEY`)
+  - Uploads backup as a GitHub Actions Artifact with configurable retention (1–90 days)
+  - Writes a rich summary table to the GitHub Actions UI after each run
+  - Options: `--type`, `--env`, `--cron`, `--retention`, `--format`, `--cli-version`, `--output`
+- [x] `src/utils/ci-generators/github-actions.ts` — Pure function returning YAML string
+  - `generateGitHubActionsWorkflow(opts)` — zero side-effects, fully testable
+  - `formatCronHuman()` helper for human-readable schedule descriptions
+
+- [x] **`export db --target sqlite|postgres|bigquery`** — Direct database export
+  - **Provider pattern**: `DbProvider` interface with `connect()`, `upsertTable()`, `disconnect()`
+  - **Factory**: `getDbProvider(opts)` resolves the correct provider via dynamic import
+  - **Idempotent**: safe to re-run — uses upsert semantics (no duplicate records)
+  - **Schema inference**: table structure derived automatically from the first batch of records
+  - **Schema evolution**: `ALTER TABLE ADD COLUMN` for any new fields in subsequent records
+  - **SQLite provider** (`sql.js` — pure JavaScript, zero native compilation required)
+    - WAL-mode pragmas enabled; data persisted as binary `.db` file on `disconnect()`
+    - Transactional batch insert for maximum performance
+  - **PostgreSQL provider** (`pg` — optional `peerDependency`)
+    - JSONB columns for objects, TIMESTAMPTZ detection for ISO date strings
+    - `ON CONFLICT DO UPDATE` upsert within a single transaction
+    - Connection string masked in terminal output (password hidden)
+  - **BigQuery provider** (`@google-cloud/bigquery` — optional `peerDependency`)
+    - Auto-creates dataset (US region) and table if they do not exist
+    - Streaming inserts in batches of 500; `_id` used as `insertId` for deduplication
+    - ADC (Application Default Credentials) by default; `--key-file` for service accounts
+    - Table naming convention: `bubble_<type>` to avoid conflicts
+- [x] `src/services/db-providers/index.ts` — `DbProvider` interface + `getDbProvider()` factory
+- [x] `src/services/db-providers/sqlite.ts` — sql.js provider
+- [x] `src/services/db-providers/postgres.ts` — pg provider (dynamic import)
+- [x] `src/services/db-providers/bigquery.ts` — BigQuery provider (dynamic import)
+- [x] `src/commands/export.ts` — `export db` command with 3-step orchestration flow
+- [x] `sql.js@^1.12.0` added to `dependencies`
+- [x] `pg` and `@google-cloud/bigquery` declared as optional `peerDependencies`
 
 ---
 
