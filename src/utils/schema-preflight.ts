@@ -173,7 +173,7 @@ export function runSchemaPreflight(
         });
       } else {
         // Field exists — check if the value type is compatible
-        const mismatch = checkTypeMismatch(doc, typeName, fieldName, bubbleField, refToTypeName);
+        const mismatch = checkTypeMismatch(doc, typeName, fieldName, bubbleField, refToTypeName, typeIndex);
         if (mismatch) {
           issues.push(mismatch);
         }
@@ -244,6 +244,65 @@ function inferSingleValue(
   return undefined;
 }
 
+// ── Matching helpers for Bubble's internal type notation ───────────────────────
+
+/**
+ * Check if a Bubble field type string matches an expected single custom/system type name.
+ * Handles "custom.product", "custom.<id>", "user", "Product", etc.
+ */
+function matchesBubbleType(
+  bubbleFieldType: string,
+  expectedTypeName: string,
+  typeIndex: Map<string, BubbleDataType>
+): boolean {
+  const raw = bubbleFieldType.toLowerCase().trim();
+  const target = expectedTypeName.toLowerCase().trim();
+
+  if (raw === target) return true;
+
+  if (raw.startsWith('custom.')) {
+    const customSuffix = raw.slice(7);
+    if (customSuffix === target) return true;
+    const resolvedType = typeIndex.get(customSuffix);
+    if (resolvedType && resolvedType.display.toLowerCase() === target) return true;
+    const targetType = typeIndex.get(target);
+    if (targetType && targetType.id.toLowerCase() === customSuffix) return true;
+  }
+
+  return false;
+}
+
+/**
+ * Check if a Bubble field type string matches an expected list type.
+ * Handles "list.custom.size", "list.custom.<id>", "list.user", "list of Size", etc.
+ */
+function matchesBubbleListType(
+  bubbleFieldType: string,
+  expectedElementTypeName: string,
+  typeIndex: Map<string, BubbleDataType>
+): boolean {
+  const raw = bubbleFieldType.toLowerCase().trim();
+  const target = expectedElementTypeName.toLowerCase().trim();
+
+  if (raw === `list of ${target}`) return true;
+
+  if (raw.startsWith('list.custom.')) {
+    const customSuffix = raw.slice(12);
+    if (customSuffix === target) return true;
+    const resolvedType = typeIndex.get(customSuffix);
+    if (resolvedType && resolvedType.display.toLowerCase() === target) return true;
+    const targetType = typeIndex.get(target);
+    if (targetType && targetType.id.toLowerCase() === customSuffix) return true;
+  }
+
+  if (raw.startsWith('list.')) {
+    const listSuffix = raw.slice(5);
+    if (listSuffix === target) return true;
+  }
+
+  return false;
+}
+
 /**
  * Check whether a seed field value is compatible with the actual Bubble field type.
  *
@@ -254,7 +313,8 @@ function checkTypeMismatch(
   typeName: string,
   fieldName: string,
   bubbleField: BubbleField,
-  refToTypeName: Map<string, string>
+  refToTypeName: Map<string, string>,
+  typeIndex: Map<string, BubbleDataType>
 ): SchemaIssue | null {
   const bubbleType = bubbleField.type.toLowerCase().trim();
 
@@ -272,12 +332,10 @@ function checkTypeMismatch(
   const inferred = inferSingleValue(firstValue, refToTypeName);
   if (!inferred) return null;
 
-  const inferredLower = inferred.toLowerCase();
-
   // ── Case 1: Seed value is a @ref → expects "Thing" link to a specific type ─
   if (typeof firstValue === 'string' && firstValue.startsWith('@')) {
     const expectedTypeName = refToTypeName.get(firstValue);
-    if (expectedTypeName && bubbleType !== expectedTypeName.toLowerCase()) {
+    if (expectedTypeName && !matchesBubbleType(bubbleField.type, expectedTypeName, typeIndex)) {
       return {
         severity: 'warning',
         typeName,
@@ -299,22 +357,19 @@ function checkTypeMismatch(
     const first = firstValue[0];
     if (typeof first === 'string' && first.startsWith('@')) {
       const expectedTypeName = refToTypeName.get(first);
-      if (expectedTypeName) {
-        const expectedBubble = `list of ${expectedTypeName}`.toLowerCase();
-        if (bubbleType !== expectedBubble) {
-          return {
-            severity: 'warning',
-            typeName,
-            fieldName,
-            inferredType: `list of ${expectedTypeName}`,
-            actualType: bubbleField.type,
-            message:
-              `Field "${fieldName}" on type "${typeName}": ` +
-              `seed value is a list of @refs pointing to "${expectedTypeName}", ` +
-              `but Bubble field type is "${bubbleField.type}". ` +
-              `Expected Bubble field type: "list of ${expectedTypeName}".`,
-          };
-        }
+      if (expectedTypeName && !matchesBubbleListType(bubbleField.type, expectedTypeName, typeIndex)) {
+        return {
+          severity: 'warning',
+          typeName,
+          fieldName,
+          inferredType: `list of ${expectedTypeName}`,
+          actualType: bubbleField.type,
+          message:
+            `Field "${fieldName}" on type "${typeName}": ` +
+            `seed value is a list of @refs pointing to "${expectedTypeName}", ` +
+            `but Bubble field type is "${bubbleField.type}". ` +
+            `Expected Bubble field type: "list of ${expectedTypeName}".`,
+        };
       }
     }
     return null;
