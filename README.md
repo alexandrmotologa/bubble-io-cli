@@ -910,11 +910,15 @@ Relational seed file structure:
 | Array / List of references | ✅ `["@ref1", "@ref2"]` |
 | Self-referencing hierarchies (e.g. Category tree) | ✅ Auto-detected |
 | Circular dependencies (A↔B) | ✅ 2-pass: Create + deferred PATCH |
-| Unknown `@ref` alias | ✅ Fails fast with clear error |
-| Duplicate `_ref` aliases | ✅ Fails fast with clear error |
+| Unknown `@ref` alias | ✅ Fails fast with clear error before any API calls |
+| Duplicate `_ref` aliases | ✅ Fails fast with clear error before any API calls |
 | Atomic rollback on error | ✅ Reverse cleanup with `--rollback-on-error` |
+| Live schema validation | ✅ Type + field + relational type-check with `--check-schema` |
 
-> **Tip:** Always run with `--dry-run` first to preview the full creation order and detect circular link resolution before making any API calls. Use `--rollback-on-error` in production/staging pipelines to automatically delete all created records in reverse order if any API call fails.
+> **Tip:** Always run with `--dry-run` first to preview the full creation order. Use `--check-schema` to validate types and fields against the live Bubble schema before any data is written. Combine both for a zero-risk dry validation:
+> ```bash
+> bubble-io-cli seed --file catalog.json --check-schema --dry-run
+> ```
 
 **Options:**
 
@@ -923,11 +927,23 @@ Relational seed file structure:
 | `--file <path>` | `-f` | Path to seed JSON file (**required**) | — |
 | `--type <datatype>` | `-t` | Override data type (legacy format only) | from file |
 | `--env <env>` | `-e` | Target environment | `version-test` |
+| `--check-schema` | | Validate all types and fields against the live Bubble schema before seeding | false |
 | `--rollback-on-error` | | Automatically delete created records in reverse order if any error occurs | false |
 | `--concurrency <n>` | | Parallel requests (legacy mode only, 1–20) | `5` |
 | `--dry-run` | | Preview execution plan without API calls | false |
 | `--json` | | Machine-readable JSON output | false |
 | `--profile <name>` | `-p` | Named credential profile | active |
+
+**`--check-schema` validation rules:**
+
+| Check | Severity | Description |
+|---|---|---|
+| Missing Type | ❌ Error | Type in seed does not exist in Bubble — aborts seed |
+| Missing Field | ❌ Error | Field in seed does not exist on the Bubble type — aborts seed |
+| Wrong Thing link | ⚠ Warning | A `@ref` value points to type `A` but the Bubble field expects type `B` |
+| Wrong list of Thing | ⚠ Warning | An array of `@ref`s points to type `A` but Bubble field is `list of B` |
+| Number → text field | ⚠ Warning | A JS number is sent to a Bubble `text` field |
+| Boolean → text field | ⚠ Warning | A JS boolean is sent to a Bubble `text` field |
 
 ---
 

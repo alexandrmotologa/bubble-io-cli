@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.2.0] — 2026-08-08
+
+### Added
+
+#### `seed` — Schema Pre-Flight Check (`--check-schema`)
+
+- **`--check-schema` flag** — Before creating any records, the CLI fetches the live Bubble schema via `GET /meta/types` and validates the full relational seed document against it. Any errors abort the seed before a single API call is made.
+
+- **New module `src/utils/schema-preflight.ts`** — Pure TypeScript, zero external dependencies:
+  - `runSchemaPreflight(doc, bubbleTypes)` — scans every type and field in the seed document and returns a `SchemaPreflightResult` with a list of typed issues.
+  - `formatPreflightReport(result)` — formats a human-readable terminal report with per-issue severity markers.
+
+- **Intelligent relational field type inference:**
+
+  | Value in seed | Inferred expected Bubble type |
+  |---|---|
+  | `"@prod_1"` (`@ref` string) | Resolves the type that `@prod_1` belongs to (e.g. `Product`) |
+  | `["@size_s", "@size_m"]` (array of `@ref`s) | `list of Size` |
+  | `120` (JS number) | `number` |
+  | `true` (JS boolean) | `boolean` |
+  | `"Hello"` (plain string) | `text` |
+
+- **Severity model:**
+  - `error` — Missing Type or Missing Field (seed is aborted before any API call).
+  - `warning` — Type mismatch (e.g. `@ref` points to wrong type, number in a text field) — logged but does not block the seed.
+
+- **Works with `--dry-run`** — Schema validation + dry-run plan preview with zero API writes:
+  ```bash
+  bubble-io-cli seed --file catalog.json --check-schema --dry-run
+  ```
+
+---
+
 ## [4.1.0] — 2026-08-08
 
 ### Added
