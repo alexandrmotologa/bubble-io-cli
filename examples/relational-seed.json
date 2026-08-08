@@ -1,0 +1,47 @@
+{
+  "Category": [
+    {
+      "_ref": "@cat_tech",
+      "Name": "Technology"
+    },
+    {
+      "_ref": "@cat_laptops",
+      "Name": "Laptops",
+      "Parent_Category": "@cat_tech"
+    }
+  ],
+  "Product": [
+    {
+      "_ref": "@prod_macbook",
+      "Name": "MacBook Pro M3",
+      "Category": "@cat_laptops",
+      "Available_Sizes": ["@size_14", "@size_16"]
+    }
+  ],
+  "Size": [
+    {
+      "_ref": "@size_14",
+      "Name": "14 inch",
+      "Product": "@prod_macbook"
+    },
+    {
+      "_ref": "@size_16",
+      "Name": "16 inch",
+      "Product": "@prod_macbook"
+    }
+  ],
+  "Price": [
+    {
+      "Amount": 1999,
+      "Currency": "USD",
+      "Product": "@prod_macbook",
+      "Size": "@size_14"
+    },
+    {
+      "Amount": 2499,
+      "Currency": "USD",
+      "Product": "@prod_macbook",
+      "Size": "@size_16"
+    }
+  ]
+}
