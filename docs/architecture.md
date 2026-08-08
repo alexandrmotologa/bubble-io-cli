@@ -41,6 +41,7 @@ This document describes the internal structure, design decisions, and command fl
 │   src/utils/query-session.ts  — REPL session state machine      │
 │   src/utils/graph-resolver.ts — DAG & topological sort engine   │
 │   src/utils/relational-seeder.ts — Relational execution engine  │
+│   src/utils/schema-preflight.ts  — Schema pre-flight validator  │
 │   src/utils/ci-generators/    — CI/CD workflow file generators  │
 │     └─ github-actions.ts  GitHub Actions YAML generator          │
 └─────────────────────────────────────────────────────────────────┘
@@ -70,7 +71,7 @@ Each file in `src/commands/` maps to one CLI sub-command (or sub-command group) 
 | `health.ts` | `health` | `bubble-api.ts` |
 | `schema.ts` | `schema list`, `schema diff`, `schema erd` | `bubble-meta.ts`, `schema-diff.ts`, `schema-erd.ts` |
 | `workflow.ts` | `workflow trigger` | `bubble-api.ts` |
-| `seed.ts` | `seed` | `bubble-api.ts`, `graph-resolver.ts`, `relational-seeder.ts` |
+| `seed.ts` | `seed` | `bubble-api.ts`, `bubble-meta.ts`, `graph-resolver.ts`, `relational-seeder.ts`, `schema-preflight.ts` |
 | `mock.ts` | `mock` | `express` |
 | `plugin.ts` | `plugin list`, `plugin get`, `plugin deploy` | `bubble-plugin.ts` |
 | `generate.ts` | `generate` (templates), `generate types`, `generate ci` | `bubble-meta.ts`, `type-generator.ts`, `ci-generators/github-actions.ts` |
@@ -544,8 +545,29 @@ Sequential execution engine for multi-type relational imports.
 | Function | Description |
 |---|---|
 | `isRelationalDoc(parsed)` | Heuristic to distinguish relational multi-type documents from legacy single-type seed files |
-| `runRelationalSeed(options)` | Orchestrates the full seed lifecycle: graph resolution → sequential creation → live ID mapping → deferred PATCH execution |
+| `runRelationalSeed(options)` | Orchestrates the full seed lifecycle: graph resolution → sequential creation → live ID mapping → deferred PATCH execution → optional rollback |
 | `printRelationalSummary(result)` | Renders formatted terminal summary with per-type record counts and resolved links |
+
+---
+
+### `schema-preflight.ts`
+
+Pure TypeScript schema validation engine. Fetches no data itself — receives the Bubble schema from the caller and validates the seed document against it. Zero external dependencies.
+
+| Function | Description |
+|---|---|
+| `runSchemaPreflight(doc, bubbleTypes)` | Validates all types and fields in the seed document against the live Bubble schema. Detects missing types, missing fields, and type mismatches (including `Thing` and `list of Thing` relational references). Returns typed `SchemaPreflightResult`. |
+| `formatPreflightReport(result)` | Renders a human-readable terminal report with `❌ error` and `⚠ warning` severity markers |
+
+**Type inference rules (relational-aware):**
+
+| Seed value | Inferred Bubble field type |
+|---|---|
+| `"@prod_1"` (`@ref` string) | The type that alias belongs to (e.g. `Product`) |
+| `["@size_s", "@size_m"]` (array of `@ref`s) | `list of Size` |
+| JS `number` | `number` |
+| JS `boolean` | `boolean` |
+| plain `string` | `text` |
 
 ---
 

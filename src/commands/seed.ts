@@ -4,11 +4,16 @@ import ora from 'ora';
 import { readFileSync } from 'fs';
 import { storage } from '../utils/storage.js';
 import { BubbleApiClient } from '../services/bubble-api.js';
+import { BubbleMetaClient } from '../services/bubble-meta.js';
 import {
   isRelationalDoc,
   runRelationalSeed,
   printRelationalSummary,
 } from '../utils/relational-seeder.js';
+import {
+  runSchemaPreflight,
+  formatPreflightReport,
+} from '../utils/schema-preflight.js';
 
 /** Legacy single-type seed file format */
 interface LegacySeedFile {
@@ -58,6 +63,7 @@ export function registerSeedCommand(program: Command): void {
     .option('-p, --profile <name>', 'Profile to use for credentials')
     .option('--concurrency <number>', 'Number of parallel create requests — legacy mode only (default: 5)', '5')
     .option('--rollback-on-error', 'Automatically delete created records in reverse order if any error occurs')
+    .option('--check-schema', 'Validate all types and fields against the live Bubble schema before seeding')
     .option('--dry-run', 'Simulate without making any API calls — shows what would be created')
     .option('--json', 'Output results as machine-readable JSON')
     .action(async (options: {
@@ -67,6 +73,7 @@ export function registerSeedCommand(program: Command): void {
       profile?: string;
       concurrency: string;
       rollbackOnError?: boolean;
+      checkSchema?: boolean;
       dryRun?: boolean;
       json?: boolean;
     }) => {
@@ -111,6 +118,55 @@ export function registerSeedCommand(program: Command): void {
             chalk.bold(`${appName}.bubbleapps.io`) +
             chalk.cyan(` [${options.env}]\n`)
           );
+        }
+
+        // ── Schema Pre-Flight Check ────────────────────────────────────────
+        if (options.checkSchema) {
+          const schemaSpinner = isJsonMode
+            ? null
+            : ora({ text: 'Fetching live Bubble schema for validation…', color: 'cyan' }).start();
+
+          let preflightResult;
+          try {
+            const metaClient = new BubbleMetaClient(appName, apiKey, options.env);
+            const bubbleTypes = await metaClient.getDataTypes();
+            schemaSpinner?.stop();
+
+            if (!isJsonMode) {
+              console.log(chalk.cyan('🔍 Schema Pre-Flight Check…'));
+            }
+
+            preflightResult = runSchemaPreflight(parsed, bubbleTypes);
+          } catch (e) {
+            schemaSpinner?.fail(chalk.yellow('Could not fetch schema (check Meta API access in Bubble settings)'));
+            if (!isJsonMode) {
+              console.error(chalk.yellow(`   ⚠ ${e instanceof Error ? e.message : String(e)}`));
+              console.log(chalk.dim('   Skipping schema validation and proceeding…\n'));
+            }
+            preflightResult = undefined;
+          }
+
+          if (preflightResult) {
+            if (isJsonMode) {
+              if (!preflightResult.ok) {
+                console.log(JSON.stringify({ success: false, error: 'Schema pre-flight check failed', preflight: preflightResult }));
+                process.exit(1);
+              }
+            } else {
+              const report = formatPreflightReport(preflightResult);
+              console.log(report);
+
+              if (!preflightResult.ok) {
+                console.error(chalk.red('❌ Schema check failed — fix the above issues before seeding.\n'));
+                process.exit(1);
+              }
+              if (preflightResult.issues.length === 0) {
+                console.log(chalk.green('✅ Schema check passed — all types and fields are valid.\n'));
+              } else {
+                console.log(chalk.yellow('⚠ Schema check passed with warnings — proceeding with seed.\n'));
+              }
+            }
+          }
         }
 
         let result;
