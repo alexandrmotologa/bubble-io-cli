@@ -1,0 +1,40 @@
+{
+  "Product": [
+    {
+      "_ref": "@prod_1",
+      "Name": "Tricou Polo",
+      "Sizes": ["@size_s", "@size_m", "@size_l"]
+    }
+  ],
+  "Size": [
+    {
+      "_ref": "@size_s",
+      "Name": "S",
+      "Product": "@prod_1"
+    },
+    {
+      "_ref": "@size_m",
+      "Name": "M",
+      "Product": "@prod_1"
+    },
+    {
+      "_ref": "@size_l",
+      "Name": "L",
+      "Product": "@prod_1"
+    }
+  ],
+  "Price": [
+    {
+      "Amount": 120,
+      "Currency": "RON",
+      "Product": "@prod_1",
+      "Size": "@size_s"
+    },
+    {
+      "Amount": 130,
+      "Currency": "RON",
+      "Product": "@prod_1",
+      "Size": "@size_m"
+    }
+  ]
+}

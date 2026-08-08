@@ -30,6 +30,8 @@ export interface RelationalSeedOptions {
   dryRun?: boolean;
   /** Suppress progress output (used in --json mode) */
   silent?: boolean;
+  /** If true, deletes all created records in reverse order if any creation or patch fails */
+  rollbackOnError?: boolean;
 }
 
 export interface RelationalSeedResult {
@@ -41,6 +43,10 @@ export interface RelationalSeedResult {
   /** Map of @ref alias → real Bubble _id */
   idMap: Record<string, string>;
   errors: string[];
+  /** Whether rollback was executed */
+  rolledBack?: boolean;
+  /** Total records deleted during rollback */
+  totalRolledBack?: number;
 }
 
 // ── Seeder ────────────────────────────────────────────────────────────────────
@@ -55,7 +61,7 @@ export interface RelationalSeedResult {
 export async function runRelationalSeed(
   opts: RelationalSeedOptions
 ): Promise<RelationalSeedResult> {
-  const { doc, client, dryRun = false, silent = false } = opts;
+  const { doc, client, dryRun = false, silent = false, rollbackOnError = false } = opts;
 
   const log = (msg: string) => { if (!silent) console.log(msg); };
   const err = (msg: string) => { if (!silent) console.error(msg); };
@@ -83,6 +89,9 @@ export async function runRelationalSeed(
   log(`   ${chalk.bold('Records:    ')} ${chalk.cyan(String(totalNodes))}`);
   if (totalPatches > 0) {
     log(`   ${chalk.bold('Patches:    ')} ${chalk.yellow(String(totalPatches))} ${chalk.dim('(circular dependency resolution)')}`);
+  }
+  if (rollbackOnError) {
+    log(`   ${chalk.bold('Rollback:   ')} ${chalk.yellow('enabled (atomic cleanup on failure)')}`);
   }
   log('');
 
@@ -112,6 +121,7 @@ export async function runRelationalSeed(
 
   // ── Step 3: Execute creation in topological order ────────────────────────
   const idMap = new Map<string, string>(); // @ref → bubble _id
+  const createdRecords: Array<{ typeName: string; id: string; ref?: string }> = [];
   const byType: Record<string, number> = {};
   const errors: string[] = [];
   let totalCreated = 0;
@@ -142,6 +152,7 @@ export async function runRelationalSeed(
       const result = await client.createRecord(node.typeName, safeData);
       totalCreated++;
       byType[node.typeName] = (byType[node.typeName] ?? 0) + 1;
+      createdRecords.push({ typeName: node.typeName, id: result.id, ref: node.ref });
 
       // Store the Bubble _id under this node's alias for future ref substitution
       if (node.ref) {
@@ -150,6 +161,12 @@ export async function runRelationalSeed(
     } catch (e) {
       const msg = `Failed to create ${label}: ${e instanceof Error ? e.message : String(e)}`;
       errors.push(msg);
+
+      if (rollbackOnError) {
+        spinner?.fail(chalk.red(`✗ ${msg} (aborting for rollback)`));
+        break;
+      }
+
       if (spinner) {
         spinner.warn(chalk.yellow(`⚠ ${msg}`));
         // Re-start spinner for remaining records
@@ -162,13 +179,13 @@ export async function runRelationalSeed(
 
   if (errors.length === 0) {
     spinner?.succeed(chalk.green(`Created ${totalCreated} records across ${typeSet.size} type(s)`));
-  } else {
+  } else if (!rollbackOnError) {
     spinner?.warn(chalk.yellow(`Created ${totalCreated}/${totalNodes} records (${errors.length} failed)`));
   }
 
   // ── Step 4: Execute deferred patches (circular dependency resolution) ────
   let totalPatched = 0;
-  if (deferredPatches.length > 0) {
+  if (deferredPatches.length > 0 && errors.length === 0) {
     log('');
     const patchSpinner = silent
       ? null
@@ -179,6 +196,7 @@ export async function runRelationalSeed(
       if (!targetId) {
         const msg = `Cannot patch ${patch.targetRef}.${patch.field}: record was not created (missing from idMap)`;
         errors.push(msg);
+        if (rollbackOnError) break;
         continue;
       }
 
@@ -197,17 +215,50 @@ export async function runRelationalSeed(
       } catch (e) {
         const msg = `Failed to patch ${patch.targetRef}.${patch.field}: ${e instanceof Error ? e.message : String(e)}`;
         errors.push(msg);
+        if (rollbackOnError) {
+          patchSpinner?.fail(chalk.red(`✗ ${msg} (aborting for rollback)`));
+          break;
+        }
       }
     }
 
     if (errors.filter((e) => e.includes('patch')).length === 0) {
       patchSpinner?.succeed(chalk.green(`Resolved ${totalPatched} circular link(s)`));
-    } else {
+    } else if (!rollbackOnError) {
       patchSpinner?.warn(chalk.yellow(`Patched ${totalPatched}/${totalPatches} links (some failed)`));
     }
   }
 
-  // ── Step 5: Return result ────────────────────────────────────────────────
+  // ── Step 5: Rollback if error occurred and rollbackOnError is true ────────
+  let rolledBack = false;
+  let totalRolledBack = 0;
+
+  if (rollbackOnError && errors.length > 0 && createdRecords.length > 0) {
+    log('');
+    const rollbackSpinner = silent
+      ? null
+      : ora({ text: `Rolling back ${createdRecords.length} created record(s) in reverse order…`, color: 'red' }).start();
+
+    for (let r = createdRecords.length - 1; r >= 0; r--) {
+      const rec = createdRecords[r];
+      try {
+        await client.deleteRecord(rec.typeName, rec.id);
+        totalRolledBack++;
+      } catch (e) {
+        const msg = `Failed to delete ${rec.typeName} ${rec.id} during rollback: ${e instanceof Error ? e.message : String(e)}`;
+        errors.push(msg);
+      }
+    }
+
+    rolledBack = true;
+    if (totalRolledBack === createdRecords.length) {
+      rollbackSpinner?.succeed(chalk.green(`Rollback complete: Cleaned up all ${totalRolledBack} created record(s).`));
+    } else {
+      rollbackSpinner?.warn(chalk.yellow(`Rollback partial: Deleted ${totalRolledBack}/${createdRecords.length} record(s).`));
+    }
+  }
+
+  // ── Step 6: Return result ────────────────────────────────────────────────
   return {
     success: errors.length === 0,
     totalCreated,
@@ -215,6 +266,8 @@ export async function runRelationalSeed(
     byType,
     idMap: Object.fromEntries(idMap),
     errors,
+    rolledBack,
+    totalRolledBack,
   };
 }
 
@@ -240,12 +293,18 @@ export function isRelationalDoc(parsed: unknown): parsed is RelationalSeedDoc {
  * Print a formatted summary table after a successful relational seed.
  */
 export function printRelationalSummary(result: RelationalSeedResult): void {
-  console.log(chalk.green('\n✅ Relational seed complete!\n'));
-  console.log(`   ${chalk.bold('Records created: ')} ${chalk.green(String(result.totalCreated))}`);
+  if (result.rolledBack) {
+    console.log(chalk.yellow('\n⚠ Relational seed aborted with errors. Rollback executed!\n'));
+    console.log(`   ${chalk.bold('Records deleted: ')} ${chalk.red(String(result.totalRolledBack ?? 0))}`);
+  } else {
+    console.log(chalk.green('\n✅ Relational seed complete!\n'));
+    console.log(`   ${chalk.bold('Records created: ')} ${chalk.green(String(result.totalCreated))}`);
+  }
+
   if (result.totalPatched > 0) {
     console.log(`   ${chalk.bold('Circular links:  ')} ${chalk.yellow(String(result.totalPatched))} resolved`);
   }
-  if (Object.keys(result.byType).length > 0) {
+  if (Object.keys(result.byType).length > 0 && !result.rolledBack) {
     console.log(`\n   ${chalk.bold('Breakdown by type:')}`);
     for (const [type, count] of Object.entries(result.byType)) {
       console.log(`     ${chalk.cyan('·')} ${chalk.bold(type)}: ${chalk.green(String(count))} record(s)`);

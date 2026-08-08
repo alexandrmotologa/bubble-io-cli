@@ -57,6 +57,7 @@ export function registerSeedCommand(program: Command): void {
     .option('-e, --env <environment>', 'Target environment: version-test or version-live', 'version-test')
     .option('-p, --profile <name>', 'Profile to use for credentials')
     .option('--concurrency <number>', 'Number of parallel create requests — legacy mode only (default: 5)', '5')
+    .option('--rollback-on-error', 'Automatically delete created records in reverse order if any error occurs')
     .option('--dry-run', 'Simulate without making any API calls — shows what would be created')
     .option('--json', 'Output results as machine-readable JSON')
     .action(async (options: {
@@ -65,6 +66,7 @@ export function registerSeedCommand(program: Command): void {
       env: string;
       profile?: string;
       concurrency: string;
+      rollbackOnError?: boolean;
       dryRun?: boolean;
       json?: boolean;
     }) => {
@@ -118,6 +120,7 @@ export function registerSeedCommand(program: Command): void {
             client,
             dryRun: Boolean(options.dryRun),
             silent: isJsonMode,
+            rollbackOnError: Boolean(options.rollbackOnError),
           });
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e);
@@ -138,6 +141,8 @@ export function registerSeedCommand(program: Command): void {
             totalPatched: result.totalPatched,
             byType: result.byType,
             idMap: result.idMap,
+            ...(result.rolledBack !== undefined && { rolledBack: result.rolledBack }),
+            ...(result.totalRolledBack !== undefined && { totalRolledBack: result.totalRolledBack }),
             ...(result.errors.length > 0 && { errors: result.errors }),
           }));
         } else {
