@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [4.0.0] — 2026-08-08
+
+### Added
+
+#### `generate ci` — GitHub Actions CI/CD Workflow Generator
+
+- **`bubble-io-cli generate ci --provider github`** — Generates a production-ready `.github/workflows/bubble-backup.yml` file in a single command. No manual YAML editing required.
+  - **Nightly cron schedule** — Configurable via `--cron` (default: `0 3 * * *`, 3:00 AM UTC)
+  - **`workflow_dispatch`** support for on-demand manual runs from the GitHub Actions tab
+  - **npm install step** — Installs `bubble-io-cli` from npm; version can be pinned with `--cli-version`
+  - **Secure credential handling** — Reads `BUBBLE_APP_NAME` and `BUBBLE_API_KEY` from GitHub Secrets; printed reminder in terminal output
+  - **GitHub Actions Artifact upload** — Backup saved as a named artifact with configurable `--retention` days (1–90, default 30)
+  - **Job summary** — Writes a rich Markdown table to `$GITHUB_STEP_SUMMARY` visible in the GitHub Actions UI
+  - **JSON validation** — Runs `bubble-io-cli backup --json` and validates the result before uploading
+  - Options: `--type`, `--env`, `--cron`, `--retention`, `--format` (`json`|`csv`), `--cli-version`, `--output`
+- New module: `src/utils/ci-generators/github-actions.ts`
+  - `generateGitHubActionsWorkflow(opts: GitHubActionsOptions): string` — pure function, zero side-effects, fully testable
+  - `formatCronHuman(cron: string): string` — helper that converts cron expressions to human-readable descriptions
+
+#### `export db` — Direct Database Export
+
+- **`bubble-io-cli export db --type <T> --target <provider>`** — Exports records from any Bubble data type directly into an external database. Supports three providers:
+
+  **SQLite** (`--target sqlite`):
+  - Uses `sql.js` (pure JavaScript WebAssembly port — zero native compilation, zero build tools required)
+  - `--db <path>` flag specifies the output `.db` file (default: `./bubble.db`)
+  - WAL-mode pragma enabled for consistency; database persisted to disk on `disconnect()`
+  - Transactional batch inserts (`BEGIN TRANSACTION … COMMIT`) for maximum throughput
+  - Schema inferred from the first record; new columns added via `ALTER TABLE ADD COLUMN`
+  - `INSERT OR REPLACE` upsert semantics — idempotent re-runs produce no duplicates
+
+  **PostgreSQL** (`--target postgres`):
+  - Uses the `pg` package via dynamic import (optional `peerDependency` — install with `npm install pg`)
+  - `--connection-string <url>` accepts standard PostgreSQL connection strings
+  - Column types: `JSONB` for objects/arrays, `TIMESTAMPTZ` for ISO 8601 date strings, `BIGINT`/`DOUBLE PRECISION` for numbers, `TEXT` otherwise
+  - `ON CONFLICT DO UPDATE SET` upsert in a single transaction; rolled back on error
+  - Connection string password masked in terminal output (`***`)
+
+  **BigQuery** (`--target bigquery`):
+  - Uses `@google-cloud/bigquery` via dynamic import (optional `peerDependency`)
+  - `--project <id>` and `--dataset <id>` (default: `bubble_data`) required
+  - `--key-file <path>` for service account auth; defaults to Application Default Credentials (ADC)
+  - Auto-creates dataset (US region) and table if they do not exist
+  - Schema evolution: compares existing metadata and patches new fields
+  - Streaming inserts in batches of 500 (BigQuery limit); `_id` used as `insertId` for deduplication
+  - Table names prefixed with `bubble_` to avoid conflicts with existing BQ assets
+
+- **Provider pattern architecture:**
+  - `DbProvider` interface: `connect()`, `upsertTable(typeName, records)`, `disconnect()`
+  - `getDbProvider(opts: DbProviderOptions): Promise<DbProvider>` factory with dynamic imports
+  - Heavy dependencies (`pg`, `@google-cloud/bigquery`) never bundled unless the user installs them; missing package errors include clear install instructions
+
+- New files:
+  - `src/services/db-providers/index.ts` — `DbProvider` interface, option types, factory
+  - `src/services/db-providers/sqlite.ts` — sql.js provider
+  - `src/services/db-providers/postgres.ts` — pg provider
+  - `src/services/db-providers/bigquery.ts` — BigQuery provider
+  - `src/commands/export.ts` — `export db` command (3-step orchestration: fetch → connect → upsert)
+
+### Changed
+
+- **`package.json` version** bumped to `4.0.0`
+- **`src/index.ts`** — registered `registerExportCommand(program)` alongside existing commands
+- **`generate` command** — extended to include `generate ci` sub-command alongside existing `generate types` and scaffold templates
+- **Dependencies:**
+  - `sql.js@^1.12.0` added to `dependencies` (included in the published bundle)
+  - `pg >= 8.0.0` declared as optional `peerDependency`
+  - `@google-cloud/bigquery >= 7.0.0` declared as optional `peerDependency`
+  - `@types/pg@^8.11.0` and `@types/sql.js@^1.4.0` added to `devDependencies`
+- **Keywords** in `package.json` extended: `ci-cd`, `github-actions`, `database`, `sqlite`, `postgresql`, `bigquery`
+
+---
+
 ## [3.3.1] — 2026-08-08
 
 ### Added

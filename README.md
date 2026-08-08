@@ -8,7 +8,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-green?style=flat-square&logo=node.js)](https://nodejs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-3178C6?style=flat-square&logo=typescript)](https://www.typescriptlang.org)
-[![Tests](https://img.shields.io/badge/tests-240%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
+[![Tests](https://img.shields.io/badge/tests-226%20passing-brightgreen?style=flat-square)](https://github.com/alexandrmotologa/bubble-io-cli)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](CONTRIBUTING.md)
 
 </div>
@@ -28,6 +28,12 @@ bubble-io-cli config --app my-cool-app --key YOUR_BUBBLE_API_KEY
 
 # Back up any data type instantly
 bubble-io-cli backup --type Product --env version-live
+
+# Generate a GitHub Actions workflow for nightly automated backups
+bubble-io-cli generate ci --provider github
+
+# Export Bubble data directly into a SQLite database
+bubble-io-cli export db --type User --target sqlite --db ./bubble.db
 
 # Compare schema between environments
 bubble-io-cli schema diff
@@ -553,6 +559,59 @@ bubble-io-cli generate --template data-trigger --name OrderCreated --output ./we
 
 ---
 
+### `generate ci` — GitHub Actions CI/CD Generator (New in v4.0.0)
+
+Generate a production-ready GitHub Actions workflow file that automatically backs up your Bubble data every night. One command, zero manual YAML editing.
+
+```bash
+# Generate with all defaults (backs up User type, runs at 03:00 UTC, 30-day retention)
+bubble-io-cli generate ci --provider github
+
+# Customize for a specific type, schedule, and retention period
+bubble-io-cli generate ci --provider github \
+  --type Order \
+  --cron "0 2 * * *" \
+  --retention 60 \
+  --format json
+
+# Pin a specific CLI version in the workflow (recommended for reproducibility)
+bubble-io-cli generate ci --provider github \
+  --cli-version 4.0.0 \
+  --output .github/workflows
+
+# Export to CSV instead of JSON
+bubble-io-cli generate ci --provider github --type Product --format csv
+```
+
+**What the generated workflow does:**
+
+1. ✅ Runs on a nightly cron schedule (configurable)
+2. ✅ Supports `workflow_dispatch` for manual on-demand runs
+3. ✅ Installs `bubble-io-cli` from npm (latest or pinned version)
+4. ✅ Configures credentials securely from GitHub Secrets
+5. ✅ Runs `bubble-io-cli backup --json` and validates the result
+6. ✅ Uploads the backup as a GitHub Actions Artifact (configurable retention)
+7. ✅ Writes a rich summary table to the GitHub Actions UI
+
+**Required GitHub Secrets** (add under Settings → Secrets → Actions):
+
+| Secret | Description |
+|---|---|
+| `BUBBLE_APP_NAME` | Your Bubble app subdomain (e.g. `my-app`) |
+| `BUBBLE_API_KEY` | Your Bubble private Data API key |
+
+| Option | Alias | Description | Default |
+|---|---|---|---|
+| `--provider <name>` | | CI/CD provider: `github` | **required** |
+| `--type <datatype>` | `-t` | Bubble data type to back up | `User` |
+| `--env <environment>` | `-e` | Bubble environment | `version-live` |
+| `--cron <expression>` | | UTC cron schedule expression | `0 3 * * *` |
+| `--retention <days>` | | Artifact retention days (1–90) | `30` |
+| `--format <type>` | `-f` | Backup format: `json` or `csv` | `json` |
+| `--cli-version <version>` | | npm version to pin | `latest` |
+| `--output <dir>` | `-o` | Output directory | `.github/workflows` |
+
+---
 
 ### `query` — Interactive REPL (New in v3.1.0)
 
@@ -701,6 +760,85 @@ bubble-io-cli audit privacy --json
 
 ---
 
+### `export db` — Export to Database (New in v4.0.0)
+
+Export records from any Bubble data type directly into an external database. Supports **SQLite** (zero-config, local), **PostgreSQL**, and **BigQuery** (enterprise). Uses a provider pattern — heavy database SDKs are loaded lazily, so installing the full CLI stays lean.
+
+```bash
+# ── SQLite — zero config, local file, no extra dependencies ──────────────────
+bubble-io-cli export db --type User --target sqlite --db ./bubble.db
+
+# Export a specific type to a named file
+bubble-io-cli export db --type Product --target sqlite --db ./products.db
+
+# Limit the number of records exported
+bubble-io-cli export db --type Order --target sqlite --db ./orders.db --limit 500
+
+# ── PostgreSQL — requires: npm install pg ─────────────────────────────────────
+bubble-io-cli export db --type User \
+  --target postgres \
+  --connection-string "postgresql://user:pass@localhost:5432/mydb"
+
+# Export from live environment
+bubble-io-cli export db --type Product \
+  --target postgres \
+  --env version-live \
+  --connection-string "postgresql://user:pass@db.example.com/prod"
+
+# ── BigQuery — requires: npm install @google-cloud/bigquery ──────────────────
+# Uses Application Default Credentials (gcloud auth application-default login)
+bubble-io-cli export db --type Order \
+  --target bigquery \
+  --project my-gcp-project \
+  --dataset bubble_data
+
+# With a service account key file
+bubble-io-cli export db --type User \
+  --target bigquery \
+  --project my-gcp-project \
+  --dataset bubble_data \
+  --key-file ./service-account.json
+```
+
+**How it works:**
+
+1. Fetches all records from Bubble via the Data API (with cursor pagination)
+2. Connects to the target database
+3. Creates the table automatically if it doesn't exist (schema inferred from the first record)
+4. Adds any new columns that appear in subsequent records (`ALTER TABLE`)
+5. Upserts all records idempotently — safe to re-run, no duplicates
+
+**Optional dependencies** (installed only when needed):
+
+| Target | Install command | Notes |
+|---|---|---|
+| `sqlite` | *(included — uses `sql.js`)* | Pure JavaScript, no native compilation |
+| `postgres` | `npm install pg` | Also: `npm install -D @types/pg` for TypeScript |
+| `bigquery` | `npm install @google-cloud/bigquery` | Uses ADC or `--key-file` |
+
+**SQLite — what gets created:**
+
+A `.db` file with one table per Bubble data type. Table name = sanitized type name (e.g. `User` → `user`). All fields are stored with inferred types (`TEXT`, `REAL`, `INTEGER`). JSON objects/arrays are stored as JSON strings.
+
+**BigQuery — table naming convention:**
+
+Table names are prefixed with `bubble_` (e.g. `Order` → `bubble_order`) to avoid conflicts with existing BQ tables. Streaming inserts use `_id` as `insertId` for best-effort deduplication.
+
+| Option | Alias | Description | Default |
+|---|---|---|---|
+| `--type <datatype>` | `-t` | Bubble data type to export (**required**) | — |
+| `--target <provider>` | | `sqlite` \| `postgres` \| `bigquery` (**required**) | — |
+| `--env <environment>` | `-e` | Bubble environment | `version-test` |
+| `--limit <number>` | `-l` | Maximum records to export | all |
+| `--profile <name>` | `-p` | Named credential profile | active |
+| `--db <path>` | | SQLite `.db` file path | `./bubble.db` |
+| `--connection-string <url>` | | PostgreSQL connection string | — |
+| `--project <id>` | | GCP project ID (BigQuery) | — |
+| `--dataset <id>` | | BigQuery dataset ID | `bubble_data` |
+| `--key-file <path>` | | Service account key JSON file | — |
+
+---
+
 ### `completions` — Shell Tab Completion
 
 
@@ -731,26 +869,38 @@ bubble-io-cli/
 │   │   ├── restore.ts             # restore — bulk upload from file
 │   │   ├── diff.ts                # diff — compare live vs local
 │   │   ├── health.ts              # health — API connectivity check
-│   │   ├── schema.ts              # schema list / schema diff
+│   │   ├── schema.ts              # schema list / schema diff / schema erd
 │   │   ├── workflow.ts            # workflow trigger
 │   │   ├── seed.ts                # seed — bulk create from fixtures
 │   │   ├── mock.ts                # mock — local development server
 │   │   ├── plugin.ts              # plugin list / get / deploy
-│   │   ├── generate.ts            # generate — scaffold templates
+│   │   ├── generate.ts            # generate (templates) / generate types / generate ci
+│   │   ├── export.ts              # export db — database export (SQLite/PostgreSQL/BigQuery)
 │   │   ├── audit.ts               # audit privacy — PII scanner
 │   │   └── completions.ts         # completions — shell tab completion
 │   ├── services/                  # Business logic
 │   │   ├── bubble-api.ts          # BubbleApiClient — Data API (CRUD + pagination)
 │   │   ├── bubble-meta.ts         # BubbleMetaClient — Meta API (schema)
-│   │   └── bubble-plugin.ts       # BubblePluginClient — Plugin Editor API
+│   │   ├── bubble-plugin.ts       # BubblePluginClient — Plugin Editor API
+│   │   └── db-providers/          # Database export providers (provider pattern)
+│   │       ├── index.ts           # DbProvider interface + getDbProvider() factory
+│   │       ├── sqlite.ts          # SQLite provider (sql.js — pure JS)
+│   │       ├── postgres.ts        # PostgreSQL provider (dynamic import: pg)
+│   │       └── bigquery.ts        # BigQuery provider (dynamic import: @google-cloud/bigquery)
 │   └── utils/                     # Infrastructure helpers
 │       ├── storage.ts             # Configstore — config & multi-profile
 │       ├── csv.ts                 # CSV serialization (flattenRecord + jsonToCsv)
 │       ├── encryption.ts          # AES-256-GCM encrypt/decrypt
 │       ├── cloud-upload.ts        # S3 + GCS upload adapters
 │       ├── notifications.ts       # Slack + Discord webhook dispatcher
-│       ├── pii-scanner.ts         # PII detection engine (scanTypes, scanSchema, scanBackupFile)
-│       └── schema-diff.ts         # Schema diffing engine
+│       ├── pii-scanner.ts         # PII detection engine
+│       ├── schema-diff.ts         # Schema diffing engine
+│       ├── schema-erd.ts          # Mermaid ERD generator
+│       ├── type-generator.ts      # TypeScript interface generator
+│       ├── table-renderer.ts      # cli-table3 table renderer
+│       ├── query-session.ts       # REPL session state machine
+│       └── ci-generators/
+│           └── github-actions.ts  # GitHub Actions YAML generator
 └── tests/                         # Vitest unit tests (226 tests)
     ├── bubble-api.test.ts
     ├── storage.test.ts

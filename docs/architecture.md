@@ -20,6 +20,11 @@ This document describes the internal structure, design decisions, and command fl
 │   src/services/bubble-api.ts      — Data API (CRUD + pages)     │
 │   src/services/bubble-meta.ts     — Meta API (schema)           │
 │   src/services/bubble-plugin.ts   — Plugin Editor API           │
+│   src/services/db-providers/      — DB export provider pattern  │
+│     ├─ index.ts   DbProvider interface + getDbProvider() factory │
+│     ├─ sqlite.ts  sql.js provider (pure JS, no native build)     │
+│     ├─ postgres.ts pg provider (dynamic import)                 │
+│     └─ bigquery.ts @google-cloud/bigquery provider (dyn import)  │
 └─────────────────────────────┬───────────────────────────────────┘
                               │ reads/writes
 ┌─────────────────────────────▼───────────────────────────────────┐
@@ -34,6 +39,8 @@ This document describes the internal structure, design decisions, and command fl
 │   src/utils/type-generator.ts — TypeScript interface generator  │
 │   src/utils/table-renderer.ts — cli-table3 table renderer       │
 │   src/utils/query-session.ts  — REPL session state machine      │
+│   src/utils/ci-generators/    — CI/CD workflow file generators  │
+│     └─ github-actions.ts  GitHub Actions YAML generator          │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -64,8 +71,10 @@ Each file in `src/commands/` maps to one CLI sub-command (or sub-command group) 
 | `seed.ts` | `seed` | `bubble-api.ts` |
 | `mock.ts` | `mock` | `express` |
 | `plugin.ts` | `plugin list`, `plugin get`, `plugin deploy` | `bubble-plugin.ts` |
-| `generate.ts` | `generate` (templates), `generate types` | `bubble-meta.ts`, `type-generator.ts` |
+| `generate.ts` | `generate` (templates), `generate types`, `generate ci` | `bubble-meta.ts`, `type-generator.ts`, `ci-generators/github-actions.ts` |
+| `export.ts` | `export db` | `bubble-api.ts`, `db-providers/index.ts` |
 | `query.ts` | `query` | `bubble-api.ts`, `bubble-meta.ts`, `table-renderer.ts`, `query-session.ts` |
+| `audit.ts` | `audit privacy` | `bubble-meta.ts`, `pii-scanner.ts` |
 | `completions.ts` | `completions` | — |
 
 ---
@@ -258,6 +267,69 @@ User Terminal              ← Table printed, action menu shown (n/p/r/t/e/q)
 ```
 
 ---
+
+### Command Flow: `bubble-io-cli generate ci --provider github`
+
+```
+User Terminal
+    │
+    ▼
+src/commands/generate.ts  ← Validates --provider, --format, --retention
+    │                        Starts ora spinner
+    ▼
+src/utils/ci-generators/
+  github-actions.ts        ← generateGitHubActionsWorkflow(options)
+    │                        Pure function: receives options, returns YAML string
+    │                        Inlines all secrets, schedule, steps, artifact upload
+    ▼
+src/commands/generate.ts  ← mkdir -p .github/workflows (or custom --output)
+    │                        writeFile('bubble-backup.yml', yaml)
+    ▼
+File system               ← .github/workflows/bubble-backup.yml written
+    │
+    ▼
+User Terminal             ← ✅ Generated ... + secrets reminder + tip
+```
+
+---
+
+### Command Flow: `bubble-io-cli export db --type User --target sqlite --db ./bubble.db`
+
+```
+User Terminal
+    │
+    ▼
+src/commands/export.ts    ← Reads config via storage.getConfig()
+    │                        Validates --target, --connection-string (postgres),
+    │                        --project (bigquery)
+    ▼
+src/services/bubble-api.ts ← getAllRecords(type, maxRecords?)
+    │                          Paginates cursor until remaining === 0
+    ▼
+src/services/db-providers/
+  index.ts                 ← getDbProvider({ target: 'sqlite', db: './bubble.db' })
+    │                        Factory resolves correct provider via dynamic import
+    ▼
+src/services/db-providers/
+  sqlite.ts                ← provider.connect()  — opens/creates .db file
+    │
+    ▼
+  sqlite.ts                ← provider.upsertTable(type, records)
+    │                        CREATE TABLE IF NOT EXISTS (schema from 1st record)
+    │                        ALTER TABLE ADD COLUMN (for any new columns)
+    │                        BEGIN TRANSACTION
+    │                        INSERT OR REPLACE ... (for each record)
+    │                        COMMIT
+    ▼
+  sqlite.ts                ← provider.disconnect() — exports DB to .db file on disk
+    ▼
+User Terminal             ← ✅ Exported N records → sqlite + summary
+```
+
+> **Provider Pattern:** `getDbProvider()` is a factory that dynamically imports
+> the correct module (`sqlite.ts`, `postgres.ts`, or `bigquery.ts`). Heavy
+> dependencies (`pg`, `@google-cloud/bigquery`) are never loaded unless the user
+> selects that target. If missing, a helpful install message is shown.
 
 ## Layer 2: Service Layer — `src/services/`
 

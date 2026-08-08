@@ -16,6 +16,7 @@ import { registerMockCommand } from './commands/mock.js';
 import { registerPluginCommand } from './commands/plugin.js';
 import { registerQueryCommand } from './commands/query.js';
 import { registerAuditCommand } from './commands/audit.js';
+import { registerExportCommand } from './commands/export.js';
 import { loadPlugins } from './utils/plugin-loader.js';
 
 const program = new Command();
@@ -26,7 +27,7 @@ program
     chalk.cyan('🫧  bubble-io-cli') +
     chalk.dim(' — A developer CLI for managing and interacting with Bubble.io applications')
   )
-  .version('3.3.0', '-v, --version', 'Output the current version')
+  .version('4.0.0', '-v, --version', 'Output the current version')
   .helpOption('-h, --help', 'Display help for command');
 
 // Register all sub-commands
@@ -44,6 +45,7 @@ registerMockCommand(program);
 registerPluginCommand(program);
 registerQueryCommand(program);
 registerAuditCommand(program);
+registerExportCommand(program);
 
 // Show help if no command provided
 if (process.argv.length <= 2) {

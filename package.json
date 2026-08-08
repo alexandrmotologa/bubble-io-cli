@@ -1,6 +1,6 @@
 {
   "name": "bubble-io-cli",
-  "version": "3.3.1",
+  "version": "4.0.0",
   "description": "An open-source CLI for managing, backing up, and interacting with Bubble.io applications via the Data API",
   "author": "bubble-io-cli contributors",
   "license": "MIT",
@@ -34,7 +34,13 @@
     "pii",
     "privacy",
     "extensible-cli",
-    "plugins"
+    "plugins",
+    "ci-cd",
+    "github-actions",
+    "database",
+    "sqlite",
+    "postgresql",
+    "bigquery"
   ],
   "bin": {
     "bubble-io-cli": "dist/index.js"
@@ -63,12 +69,27 @@
     "commander": "^12.0.0",
     "configstore": "^6.0.0",
     "express": "^5.2.1",
-    "ora": "^5.4.1"
+    "ora": "^5.4.1",
+    "sql.js": "^1.12.0"
+  },
+  "peerDependencies": {
+    "@google-cloud/bigquery": ">=7.0.0",
+    "pg": ">=8.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@google-cloud/bigquery": {
+      "optional": true
+    },
+    "pg": {
+      "optional": true
+    }
   },
   "devDependencies": {
     "@types/configstore": "^6.0.0",
     "@types/express": "^5.0.6",
     "@types/node": "^20.0.0",
+    "@types/pg": "^8.11.0",
+    "@types/sql.js": "^1.4.0",
     "tsup": "^8.0.0",
     "tsx": "^4.0.0",
     "typescript": "^5.0.0",
