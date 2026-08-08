@@ -338,8 +338,11 @@ Call Bubble backend workflows that have "This workflow can be triggered by API" 
 # Trigger a workflow
 bubble-io-cli workflow trigger --name send-invoice
 
-# Trigger with parameters
+# Trigger with inline parameters
 bubble-io-cli workflow trigger --name process-order --data '{"orderId":"abc123"}'
+
+# Trigger with a complex payload from a file (recommended for Windows)
+bubble-io-cli workflow trigger --name process-order --data @payload.json
 
 # Trigger on production
 bubble-io-cli workflow trigger --name daily-report --env version-live

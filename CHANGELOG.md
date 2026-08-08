@@ -23,6 +23,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **`diff` summary output** — The `+ N added` line is hidden when running with `--local-only` since new-record detection is not possible in that mode.
 
+### Fixed
+
+- **`workflow trigger`** — Added support for reading JSON payloads from a file using the `@` prefix in the `--data` flag (e.g. `--data @payload.json`). This resolves parsing issues when passing complex JSON inline via CLI on Windows shells (PowerShell/CMD) which often strip quotes unexpectedly.
+
 ### Documentation
 
 - **`README.md`** — Updated `diff` command section with new options, examples (`--local-only`, `--limit`, combined with `--summary`), and trade-off notes.
