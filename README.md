@@ -1,8 +1,8 @@
-# 🫧 bubble-io-cli
+# bubble-io-cli
 
 <div align="center">
 
-**A powerful, open-source command-line interface for developers and entrepreneurs who build with Bubble.io.**
+**Command-line interface for developers and teams building with Bubble.io.**
 
 [![npm version](https://img.shields.io/npm/v/bubble-io-cli?color=blue&style=flat-square)](https://www.npmjs.com/package/bubble-io-cli)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
@@ -15,12 +15,12 @@
 
 ---
 
-## ✨ What is bubble-io-cli?
+## Overview
 
-`bubble-io-cli` brings your Bubble.io application to the terminal. Instead of navigating the Bubble dashboard to export data or manage configurations, you can now automate these workflows directly from the command line — perfect for **CI/CD pipelines**, **scheduled backups**, **developer tooling**, and **no-code + code hybrid workflows**.
+`bubble-io-cli` brings your Bubble.io application to the terminal. Instead of navigating the Bubble dashboard to export data or manage configurations, you can now automate these workflows directly from the command line for **CI/CD pipelines**, **scheduled backups**, and automated tooling.
 
 ```bash
-# Launch the Interactive Terminal UI (TUI) — No complex arguments needed!
+# Launch interactive terminal UI (TUI)
 bubble-io-cli
 
 # Or run direct commands:
@@ -43,7 +43,7 @@ bubble-io-cli schema diff
 bubble-io-cli schema migrate:generate --name add_orders
 
 # Use lifecycle hooks to auto-upload backups to S3 (New in v4.5.0)
-# Place a plugin in ~/.bubble-cli/plugins/ — hooks fire automatically
+# Place a plugin in ~/.bubble-cli/plugins/ (hooks execute automatically)
 
 # Start a local mock server for offline testing
 bubble-io-cli mock --file ./backup-product.json --port 3333
@@ -51,7 +51,7 @@ bubble-io-cli mock --file ./backup-product.json --port 3333
 
 ---
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -71,7 +71,7 @@ npx bubble-io-cli --help
 
 ---
 
-## 🎮 Interactive Mode (TUI)
+## Interactive Mode (TUI)
 
 Don't want to remember command-line arguments and flags? Run `bubble-io-cli` with **no arguments** to launch the beautiful, interactive Terminal User Interface (TUI):
 
@@ -80,7 +80,7 @@ bubble-io-cli
 ```
 
 ```text
-┌  🫧  Bubble.io CLI — Interactive Mode
+┌  Bubble.io CLI - Interactive Mode
 │
 ◇  Active Environment
 │  Profile: default
@@ -97,7 +97,7 @@ bubble-io-cli
 └
 ```
 
-### Key Highlights of Interactive Mode
+### Interactive Features
 - **Zero-setup Discovery**: Guided prompts for data types, environments (`version-test` vs `version-live`), output formats, and paths.
 - **Smart Credential Management**: Displays your active profile, subdomain, and masked API key on entry. If no profile exists, prompts to set one up on the spot.
 - **Continuous Workflow**: Automatically asks if you'd like to perform another action after completing a task without re-running the command.
@@ -105,9 +105,9 @@ bubble-io-cli
 
 ---
 
-## 📖 Commands
+## Commands
 
-### `config` — Manage Credentials & Profiles
+### `config` - Manage Credentials and Profiles
 
 Store your Bubble app credentials securely in local OS config storage. Supports **multiple named profiles** so you can manage credentials for several Bubble apps simultaneously.
 
@@ -118,7 +118,7 @@ bubble-io-cli config --app my-cool-app --key YOUR_BUBBLE_API_KEY
 # Save credentials under a named profile
 bubble-io-cli config --app my-staging-app --key STAGING_KEY --profile staging
 
-# List all stored profiles (shows active profile with ●)
+# List stored profiles (indicates active profile)
 bubble-io-cli config --list
 
 # Switch the active profile
@@ -153,7 +153,7 @@ bubble-io-cli config --clear --all
 
 ---
 
-### `backup` — Export Data
+### `backup` - Export Data
 
 Download records from any Bubble data type and save them locally. Supports JSON and CSV output, server-side filtering, incremental exports, cloud upload, encryption, watch mode, and CI-friendly JSON output.
 
@@ -174,10 +174,10 @@ bubble-io-cli backup --type Order --format csv
 bubble-io-cli backup --type Order \
   --constraint '[{"key":"status","constraint_type":"equals","value":"active"}]'
 
-# Incremental export — only records modified since a date
+# Incremental export: records modified since specified date
 bubble-io-cli backup --type User --since 2026-08-01
 
-# Watch mode — backup every hour automatically
+# Watch mode: hourly automated backups
 bubble-io-cli backup --type Product --watch --interval 3600
 
 # Upload to Amazon S3 after export
@@ -201,21 +201,21 @@ bubble-io-cli backup --type Product --json
 
 | Option | Alias | Description | Default |
 |---|---|---|---|
-| `--type <datatype>` | `-t` | Bubble data type (**required**) | — |
+| `--type <datatype>` | `-t` | Bubble data type (**required**) | - |
 | `--env <environment>` | `-e` | `version-test` or `version-live` | `version-test` |
 | `--output <dir>` | `-o` | Output directory | `.` |
 | `--limit <number>` | `-l` | Max records to fetch | all |
 | `--format <type>` | `-f` | `json` or `csv` | `json` |
-| `--constraint <json>` | `-c` | Bubble constraint JSON array | — |
-| `--since <date>` | | Export only records modified after date | — |
-| `--watch` | | Continuous backup mode | — |
+| `--constraint <json>` | `-c` | Bubble constraint JSON array | - |
+| `--since <date>` | | Export only records modified after date | - |
+| `--watch` | | Continuous backup mode | - |
 | `--interval <seconds>` | | Watch interval (min 10s) | `3600` |
-| `--destination <url>` | | Cloud upload: `s3://` or `gs://` | — |
-| `--encrypt` | | AES-256-GCM encryption | — |
-| `--notify-slack <url>` | | Slack Incoming Webhook URL | — |
-| `--notify-discord <url>` | | Discord Webhook URL | — |
-| `--notify-on-error` | | Also notify on failures | — |
-| `--json` | | Machine-readable JSON output | — |
+| `--destination <url>` | | Cloud upload: `s3://` or `gs://` | - |
+| `--encrypt` | | AES-256-GCM encryption | - |
+| `--notify-slack <url>` | | Slack Incoming Webhook URL | - |
+| `--notify-discord <url>` | | Discord Webhook URL | - |
+| `--notify-on-error` | | Also notify on failures | - |
+| `--json` | | Machine-readable JSON output | - |
 
 > **Cloud upload:** Requires `npm install @aws-sdk/client-s3` (for S3) or `npm install @google-cloud/storage` (for GCS), loaded lazily.
 >
@@ -223,7 +223,7 @@ bubble-io-cli backup --type Product --json
 
 ---
 
-### `restore` — Upload Records to Bubble
+### `restore` - Upload Records to Bubble
 
 Bulk-upload records from a local backup file back to Bubble via the Data API.
 
@@ -243,16 +243,16 @@ bubble-io-cli restore --file ./backup-order.json --concurrency 10
 
 | Option | Alias | Description | Default |
 |---|---|---|---|
-| `--file <path>` | `-f` | Backup JSON file (**required**) | — |
+| `--file <path>` | `-f` | Backup JSON file (**required**) | - |
 | `--env <environment>` | `-e` | Target environment | `version-test` |
-| `--type <datatype>` | `-t` | Override data type from file | — |
+| `--type <datatype>` | `-t` | Override data type from file | - |
 | `--mode <mode>` | `-m` | `create` or `upsert` | `create` |
 | `--concurrency <n>` | | Parallel API requests (1–20) | `5` |
-| `--dry-run` | | Simulate without API calls | — |
+| `--dry-run` | | Simulate without API calls | - |
 
 ---
 
-### `diff` — Compare Data
+### `diff` - Compare Data
 
 Compare live Bubble data against a local backup file and show exactly what changed.
 
@@ -260,8 +260,8 @@ Compare live Bubble data against a local backup file and show exactly what chang
 # Compare Product type with a local backup (full table fetch)
 bubble-io-cli diff --file ./backup-product-2026-08-07.json
 
-# ⚡ Fast mode: only fetch the specific record IDs from the backup
-# Best for large tables — no full table scan, no extra Capacity Units consumed
+# Fast mode: fetch only record IDs present in the backup
+# Optimized for large tables without full table scans or extra Capacity Units
 bubble-io-cli diff --file ./backup-user.json --local-only
 
 # Limit the number of remote records fetched (useful for spot-checking)
@@ -279,21 +279,21 @@ bubble-io-cli diff --file ./backup-user.json --local-only --summary
 
 | Option | Alias | Description | Default |
 |---|---|---|---|
-| `--file <path>` | `-f` | Local backup file (**required**) | — |
-| `--type <datatype>` | `-t` | Override the data type | — |
+| `--file <path>` | `-f` | Local backup file (**required**) | - |
+| `--type <datatype>` | `-t` | Override the data type | - |
 | `--env <environment>` | `-e` | Target environment | `version-test` |
 | `--fields <list>` | | Comma-separated fields to compare | all |
 | `--limit <number>` | `-l` | Cap the number of records fetched from Bubble | all |
-| `--local-only` | | Only fetch the specific IDs from the backup — much faster for large tables | — |
-| `--summary` | | Show counts only, no per-record detail | — |
+| `--local-only` | | Fetch only the specific IDs from the backup (faster for large tables) | - |
+| `--summary` | | Show counts only, no per-record detail | - |
 
 > **`--local-only` trade-off:** This mode queries Bubble only for the record IDs already present in the backup file (in chunks of 50), making it extremely fast and capacity-efficient. However, it **cannot detect records that were added to Bubble after the backup was taken**. Use the default (full fetch) or `--limit` when you need to detect new records too.
 >
-> **`--local-only` and `--limit` are mutually exclusive** — the CLI will exit with an error if both are specified together.
+> **`--local-only` and `--limit` are mutually exclusive.** The CLI exits with an error if both are specified together.
 
 ---
 
-### `health` — Check API Connectivity
+### `health` - Check API Connectivity
 
 Verify that your credentials are valid and your Bubble app is reachable.
 
@@ -314,13 +314,13 @@ bubble-io-cli health --json
 | Option | Alias | Description | Default |
 |---|---|---|---|
 | `--env <environment>` | `-e` | Environment to check | `version-test` |
-| `--all` | | Test both environments | — |
+| `--all` | | Test both environments | - |
 | `--type <datatype>` | `-t` | Data type to ping | `User` |
-| `--json` | | JSON output | — |
+| `--json` | | JSON output | - |
 
 ---
 
-### `schema list` — Inspect App Schema
+### `schema list` - Inspect App Schema
 
 List all data types and their field definitions using the Bubble Meta API.
 
@@ -340,7 +340,7 @@ bubble-io-cli schema list --type Product
 bubble-io-cli schema list --json
 ```
 
-### `schema diff` — Compare Schema Between Environments
+### `schema diff` - Compare Schema Between Environments
 
 ```bash
 # Compare test vs live schema (default)
@@ -357,7 +357,7 @@ Output is color-coded: `+` green (added), `-` red (removed), `~` yellow (changed
 
 ---
 
-### `schema erd` — Generate Entity-Relationship Diagram
+### `schema erd` - Generate Entity-Relationship Diagram
 
 Generate a Mermaid.js Entity-Relationship Diagram from your Bubble schema. It automatically detects relationships between your data types.
 
@@ -377,7 +377,7 @@ bubble-io-cli schema erd --raw
 
 ---
 
-### `schema migrate:generate` — Schema-as-Code Database Migrations (New in v4.4.0)
+### `schema migrate:generate` - Database Migrations (v4.4.0+)
 
 Capture, track, and version control your Bubble.io database schema evolution declaratively.
 
@@ -432,7 +432,7 @@ bubble-io-cli schema migrate:generate --name ci_check --json
 
 ---
 
-### `schema migrate:list` — Inspect Migration History (New in v4.4.0)
+### `schema migrate:list` - Migration History (v4.4.0+)
 
 Display all recorded migration files and inspect the current schema lockfile baseline:
 
@@ -449,7 +449,7 @@ bubble-io-cli schema migrate:list --json
 
 ---
 
-### `workflow trigger` — Trigger Backend Workflows
+### `workflow trigger` - Trigger Backend Workflows
 
 Call Bubble backend workflows that have "This workflow can be triggered by API" enabled.
 
@@ -472,14 +472,14 @@ bubble-io-cli workflow trigger --name send-invoice --json
 
 | Option | Alias | Description | Default |
 |---|---|---|---|
-| `--name <workflowName>` | `-n` | API name of the workflow (**required**) | — |
+| `--name <workflowName>` | `-n` | API name of the workflow (**required**) | - |
 | `--env <environment>` | `-e` | Target environment | `version-live` |
-| `--data <json>` | `-d` | JSON object of workflow parameters | — |
-| `--json` | | Machine-readable output | — |
+| `--data <json>` | `-d` | JSON object of workflow parameters | - |
+| `--json` | | Machine-readable output | - |
 
 ---
 
-### `seed` — Populate Test Data
+### `seed` - Populate Test Data
 
 Bulk-create records in Bubble from a local JSON fixture file. Ideal for seeding test environments.
 
@@ -508,7 +508,7 @@ bubble-io-cli seed --file ./seeds/orders.json --concurrency 10
 
 ---
 
-### `mock` — Local Mock Server
+### `mock` - Local Mock Server
 
 Start a local Express HTTP server that exposes a Bubble-compatible Data API from a backup JSON file. Perfect for offline development and integration testing.
 
@@ -539,7 +539,7 @@ bubble-io-cli mock --file Product=./backup-product.json --file User=./backup-use
 
 ---
 
-### `plugin` — Plugin Editor API
+### `plugin` - Plugin Editor API
 
 Manage Bubble plugins via the Plugin Editor API.
 
@@ -567,13 +567,13 @@ bubble-io-cli plugin deploy --file ./plugin.json --dry-run
 
 ---
 
-### `generate` — Scaffold Templates & TypeScript Types
+### `generate` - Scaffold Templates and TypeScript Types
 
 Generate boilerplate TypeScript files for common Bubble integration patterns, or automatically create TypeScript interface definitions from your live Bubble schema.
 
-#### `generate types` — TypeScript Interface Generator (New in v3.0.0)
+#### `generate types` - TypeScript Interface Generator (v3.0.0+)
 
-Connects to the Bubble Meta API and generates clean, fully-typed TypeScript interfaces for your data types — perfect for building type-safe integrations and SDKs.
+Connects to the Bubble Meta API and generates TypeScript interfaces for your data types to support type-safe integrations and SDKs.
 
 ```bash
 # Preview all interfaces to stdout
@@ -600,7 +600,7 @@ bubble-io-cli generate types --profile staging --output ./src/bubble-types.d.ts
  * App: my-cool-app | Environment: version-test
  * Generated: 2026-08-07T22:00:00.000Z
  *
- * DO NOT EDIT — regenerate with: bubble-io-cli generate types
+ * Generated file: re-run `bubble-io-cli generate types` to update
  */
 
 export interface Product {
@@ -648,7 +648,7 @@ export interface Product {
 
 ---
 
-#### `generate` — Scaffold Integration Templates
+#### `generate` - Scaffold Integration Templates
 
 ```bash
 # List available templates
@@ -672,7 +672,7 @@ bubble-io-cli generate --template data-trigger --name OrderCreated --output ./we
 
 ---
 
-### `generate ci` — CI/CD Pipeline Generator (New in v4.0.0, Enhanced in v4.5.0)
+### `generate ci` - CI/CD Pipeline Generator (v4.0.0+)
 
 Generate a production-ready GitHub Actions or GitLab CI workflow file that automatically backs up your Bubble data every night. One command, zero manual YAML editing.
 
@@ -732,9 +732,9 @@ bubble-io-cli generate ci --provider github --type Product --format csv
 
 ---
 
-### `query` — Interactive REPL (New in v3.1.0)
+### `query` - Interactive REPL (v3.1.0+)
 
-Start a fully interactive terminal session to search, filter, and browse Bubble records in real time — without leaving the CLI.
+Interactive terminal session to search, filter, and browse Bubble records directly in the command line.
 
 ```bash
 # Start interactive query session (test environment)
@@ -801,7 +801,7 @@ bubble-io-cli query --profile staging --page-size 10
 
 ---
 
-### `audit privacy` — PII & Privacy Security Audit (New in v3.2.0)
+### `audit privacy` - PII and Privacy Audit (v3.2.0+)
 
 Scan your Bubble schema or a local backup file for potentially exposed **Personally Identifiable Information (PII)** and security risks. The scanner detects high-risk field names across 8 categories and outputs a color-coded report with Bubble Privacy Rule recommendations.
 
@@ -828,29 +828,29 @@ bubble-io-cli audit privacy --json
 **Example terminal output:**
 
 ```
-🔍 Privacy Audit Report — my-app [version-test]
+Privacy Audit Report: my-app [version-test]
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   source: remote schema   scanned: 8 types · 54 fields
   Findings: 2 CRITICAL · 3 HIGH · 1 MEDIUM
 
   ──────────────────────────────────────────────────────────
 
-  🔴 CRITICAL — User.password_hash [text]
+  CRITICAL: User.password_hash [text]
      ⚠ Field name matches credential pattern ("password"). Exposing this field risks account takeover.
      💡 In Bubble Privacy Rules: set this field to "No one" access. Never expose credentials via the Data API.
 
-  🔴 CRITICAL — User.api_token [text]
+  CRITICAL: User.api_token [text]
      ⚠ Field name matches credential pattern ("token"). Exposing this field risks account takeover.
      💡 In Bubble Privacy Rules: set this field to "No one" access.
 
-  🟠 HIGH — User.email [text]
+  HIGH: User.email [text]
      ⚠ Field name matches personal contact information ("email"). PII exposure risk.
      💡 In Bubble Privacy Rules: restrict to "This User" and explicitly granted roles only.
 
   📋 Next Steps:
      1. Open Bubble Editor → Data → Privacy
-     2. For each CRITICAL finding — set the field to "No one" access
-     3. For each HIGH finding — restrict to authenticated users or "This User"
+     2. For each CRITICAL finding: set the field to "No one" access
+     3. For each HIGH finding: restrict to authenticated users or "This User"
 ```
 
 **Detection categories:**
@@ -866,11 +866,11 @@ bubble-io-cli audit privacy --json
 | 🟡 MEDIUM | Geolocation | `gps`, `latitude`, `longitude`, `coordinates` |
 | 🟡 MEDIUM | Demographics | `full_name`, `salary`, `gender`, `ethnicity` |
 
-> **CI Integration:** The command exits with code `1` when CRITICAL findings are detected — use it as a security gate in GitHub Actions.
+> **CI Integration:** The command exits with code `1` when CRITICAL findings are detected, serving as a security check in CI/CD pipelines.
 
 | Option | Description | Default |
 |---|---|---|
-| `--file <path>` | Scan a local backup JSON file | — |
+| `--file <path>` | Scan a local backup JSON file | - |
 | `--env <env>` | Target Bubble environment | `version-test` |
 | `--type <name>` | Scan only a specific data type | all types |
 | `--min-risk <level>` | Minimum severity: `MEDIUM`, `HIGH`, `CRITICAL` | `MEDIUM` |
@@ -879,12 +879,12 @@ bubble-io-cli audit privacy --json
 
 ---
 
-### `export db` — Export to Database (New in v4.0.0)
+### `export db` - Export to Database (v4.0.0+)
 
-Export records from any Bubble data type directly into an external database. Supports **SQLite** (zero-config, local), **PostgreSQL**, and **BigQuery** (enterprise). Uses a provider pattern — heavy database SDKs are loaded lazily, so installing the full CLI stays lean.
+Export records from any Bubble data type directly into an external database. Supports **SQLite** (zero-config, local), **PostgreSQL**, and **BigQuery** (enterprise). Uses a provider pattern where heavy database SDKs are loaded lazily to keep the CLI installation lean.
 
 ```bash
-# ── SQLite — zero config, local file, no extra dependencies ──────────────────
+# SQLite (local file, zero configuration)
 bubble-io-cli export db --type User --target sqlite --db ./bubble.db
 
 # Export a specific type to a named file
@@ -893,7 +893,7 @@ bubble-io-cli export db --type Product --target sqlite --db ./products.db
 # Limit the number of records exported
 bubble-io-cli export db --type Order --target sqlite --db ./orders.db --limit 500
 
-# ── PostgreSQL — requires: npm install pg ─────────────────────────────────────
+# PostgreSQL (requires: npm install pg)
 bubble-io-cli export db --type User \
   --target postgres \
   --connection-string "postgresql://user:pass@localhost:5432/mydb"
@@ -904,7 +904,7 @@ bubble-io-cli export db --type Product \
   --env version-live \
   --connection-string "postgresql://user:pass@db.example.com/prod"
 
-# ── BigQuery — requires: npm install @google-cloud/bigquery ──────────────────
+# BigQuery (requires: npm install @google-cloud/bigquery)
 # Uses Application Default Credentials (gcloud auth application-default login)
 bubble-io-cli export db --type Order \
   --target bigquery \
@@ -925,40 +925,40 @@ bubble-io-cli export db --type User \
 2. Connects to the target database
 3. Creates the table automatically if it doesn't exist (schema inferred from the first record)
 4. Adds any new columns that appear in subsequent records (`ALTER TABLE`)
-5. Upserts all records idempotently — safe to re-run, no duplicates
+5. Upserts records idempotently: safe to re-run without duplicates
 
 **Optional dependencies** (installed only when needed):
 
 | Target | Install command | Notes |
 |---|---|---|
-| `sqlite` | *(included — uses `sql.js`)* | Pure JavaScript, no native compilation |
+| `sqlite` | *(included, uses `sql.js`)* | Pure JavaScript, no native compilation |
 | `postgres` | `npm install pg` | Also: `npm install -D @types/pg` for TypeScript |
 | `bigquery` | `npm install @google-cloud/bigquery` | Uses ADC or `--key-file` |
 
-**SQLite — what gets created:**
+**SQLite output structure:**
 
 A `.db` file with one table per Bubble data type. Table name = sanitized type name (e.g. `User` → `user`). All fields are stored with inferred types (`TEXT`, `REAL`, `INTEGER`). JSON objects/arrays are stored as JSON strings.
 
-**BigQuery — table naming convention:**
+**BigQuery table naming convention:**
 
 Table names are prefixed with `bubble_` (e.g. `Order` → `bubble_order`) to avoid conflicts with existing BQ tables. Streaming inserts use `_id` as `insertId` for best-effort deduplication.
 
 | Option | Alias | Description | Default |
 |---|---|---|---|
-| `--type <datatype>` | `-t` | Bubble data type to export (**required**) | — |
-| `--target <provider>` | | `sqlite` \| `postgres` \| `bigquery` (**required**) | — |
+| `--type <datatype>` | `-t` | Bubble data type to export (**required**) | - |
+| `--target <provider>` | | `sqlite` \| `postgres` \| `bigquery` (**required**) | - |
 | `--env <environment>` | `-e` | Bubble environment | `version-test` |
 | `--limit <number>` | `-l` | Maximum records to export | all |
 | `--profile <name>` | `-p` | Named credential profile | active |
 | `--db <path>` | | SQLite `.db` file path | `./bubble.db` |
-| `--connection-string <url>` | | PostgreSQL connection string | — |
-| `--project <id>` | | GCP project ID (BigQuery) | — |
+| `--connection-string <url>` | | PostgreSQL connection string | - |
+| `--project <id>` | | GCP project ID (BigQuery) | - |
 | `--dataset <id>` | | BigQuery dataset ID | `bubble_data` |
-| `--key-file <path>` | | Service account key JSON file | — |
+| `--key-file <path>` | | Service account key JSON file | - |
 
 ---
 
-### `seed` — Relational Data Import (New in v4.1.0)
+### `seed` - Relational Data Import (v4.1.0+)
 
 Import records into Bubble from a local JSON file. Supports two formats:
 
@@ -982,7 +982,7 @@ Legacy seed file structure:
 
 #### Relational Format (multi-type with cross-references)
 
-Import entire interconnected datasets in a **single command**. Use `_ref` aliases to define cross-links between records — the CLI handles creation order automatically via a dependency graph engine.
+Import interconnected datasets in a single run. Use `_ref` aliases to define cross-links between records; the CLI resolves creation order automatically with a dependency graph engine.
 
 ```bash
 bubble-io-cli seed --file seeds/catalog.json
@@ -1043,7 +1043,7 @@ Relational seed file structure:
 
 | Option | Short | Description | Default |
 |---|---|---|---|
-| `--file <path>` | `-f` | Path to seed JSON file (**required**) | — |
+| `--file <path>` | `-f` | Path to seed JSON file (**required**) | - |
 | `--type <datatype>` | `-t` | Override data type (legacy format only) | from file |
 | `--env <env>` | `-e` | Target environment | `version-test` |
 | `--check-schema` | | Validate all types and fields against the live Bubble schema before seeding | false |
@@ -1057,8 +1057,8 @@ Relational seed file structure:
 
 | Check | Severity | Description |
 |---|---|---|
-| Missing Type | ❌ Error | Type in seed does not exist in Bubble — aborts seed |
-| Missing Field | ❌ Error | Field in seed does not exist on the Bubble type — aborts seed |
+| Missing Type | ❌ Error | Type in seed does not exist in Bubble; seed aborted |
+| Missing Field | ❌ Error | Field in seed does not exist on the Bubble type; seed aborted |
 | Wrong Thing link | ⚠ Warning | A `@ref` value points to type `A` but the Bubble field expects type `B` |
 | Wrong list of Thing | ⚠ Warning | An array of `@ref`s points to type `A` but Bubble field is `list of B` |
 | Number → text field | ⚠ Warning | A JS number is sent to a Bubble `text` field |
@@ -1066,7 +1066,7 @@ Relational seed file structure:
 
 ---
 
-### `completions` — Shell Tab Completion
+### `completions` - Shell Tab Completion
 
 
 Generate tab-completion scripts for Bash, Zsh, or Fish.
@@ -1084,40 +1084,40 @@ bubble-io-cli completions --fish > ~/.config/fish/completions/bubble-io-cli.fish
 
 ---
 
-## 🏗️ Architecture
+## Architecture
 
 ```
 bubble-io-cli/
 ├── src/
-│   ├── index.ts                   # CLI entry point — registers all commands
+│   ├── index.ts                   # CLI entry point: registers commands
 │   ├── cli/                       # Interactive Terminal UI (TUI)
 │   │   └── interactive.ts         # @clack/prompts interactive menu and sub-menu flows
 │   ├── commands/                  # Command definitions (CLI Layer)
-│   │   ├── config.ts              # config — credential storage
-│   │   ├── backup.ts              # backup — export records
-│   │   ├── restore.ts             # restore — upload records
-│   │   ├── diff.ts                # diff — compare local vs remote
-│   │   ├── health.ts              # health — ping API
+│   │   ├── config.ts              # config: credential storage
+│   │   ├── backup.ts              # backup: export records
+│   │   ├── restore.ts             # restore: upload records
+│   │   ├── diff.ts                # diff: compare local vs remote
+│   │   ├── health.ts              # health: ping API
 │   │   ├── schema.ts              # schema list / diff / erd / migrate:generate / migrate:list
-│   │   ├── workflow.ts            # workflow trigger — backend workflows
-│   │   ├── seed.ts                # seed — relational import & graph execution
-│   │   ├── mock.ts                # mock — local API server
+│   │   ├── workflow.ts            # workflow trigger: backend workflows
+│   │   ├── seed.ts                # seed: relational import and graph execution
+│   │   ├── mock.ts                # mock: local API server
 │   │   ├── plugin.ts              # plugin list / get / deploy
 │   │   ├── generate.ts            # generate (templates) / generate types / generate ci
-│   │   ├── export.ts              # export db — database export (SQLite/PostgreSQL/BigQuery)
-│   │   ├── audit.ts               # audit privacy — PII scanner
-│   │   └── completions.ts         # completions — shell tab completion
+│   │   ├── export.ts              # export db: database export
+│   │   ├── audit.ts               # audit privacy: PII scanner
+│   │   └── completions.ts         # completions: shell tab completion
 │   ├── services/                  # Business logic
-│   │   ├── bubble-api.ts          # BubbleApiClient — Data API (CRUD + pagination)
-│   │   ├── bubble-meta.ts         # BubbleMetaClient — Meta API (schema)
-│   │   ├── bubble-plugin.ts       # BubblePluginClient — Plugin Editor API
+│   │   ├── bubble-api.ts          # BubbleApiClient: Data API
+│   │   ├── bubble-meta.ts         # BubbleMetaClient: Meta API
+│   │   ├── bubble-plugin.ts       # BubblePluginClient: Plugin Editor API
 │   │   └── db-providers/          # Database export providers (provider pattern)
 │   │       ├── index.ts           #   DbProvider interface + getDbProvider() factory
 │   │       ├── sqlite.ts          #   SQLite provider (sql.js, zero native deps)
 │   │       ├── postgres.ts        #   PostgreSQL provider (dynamic import: pg)
 │   │       └── bigquery.ts        #   BigQuery provider (dynamic import: @google-cloud/bigquery)
 │   └── utils/                     # Infrastructure helpers
-│       ├── storage.ts             # Configstore — config & multi-profile
+│       ├── storage.ts             # Configstore: profile storage
 │       ├── csv.ts                 # CSV serialization (flattenRecord + jsonToCsv)
 │       ├── encryption.ts          # AES-256-GCM encrypt/decrypt
 │       ├── cloud-upload.ts        # S3 + GCS upload adapters
@@ -1152,7 +1152,7 @@ bubble-io-cli/
 
 ---
 
-## 🌍 Environment Variables
+## Environment Variables
 
 | Variable | Used by | Description |
 |---|---|---|
@@ -1167,7 +1167,7 @@ bubble-io-cli/
 
 ---
 
-## 🛠️ Development
+## Development
 
 ```bash
 # Clone the repository
@@ -1190,12 +1190,12 @@ npm test
 npm run lint
 ```
 
-## 🔌 Plugin Extensibility (v4.5.0+)
+## Plugin Extensibility (v4.5.0+)
 
 `bubble-io-cli` supports a powerful plugin system that lets you extend the CLI in two ways:
 
-1. **Custom Commands** — Add entirely new commands to the CLI via `register(program)`
-2. **Lifecycle Hooks** — React to events from existing commands without modifying core code
+1. **Custom Commands**: Add commands to the CLI via `register(program)`
+2. **Lifecycle Hooks**: React to events from existing commands without modifying core code
 
 ### Available Lifecycle Hooks
 
@@ -1218,7 +1218,7 @@ npm install -g bubble-io-cli-plugin-example
 bubble-io-cli plugin ext list
 ```
 
-### Write a Hook Plugin in 60 Seconds
+### Writing a Hook Plugin
 
 ```bash
 mkdir -p ~/.bubble-cli/plugins
@@ -1264,7 +1264,7 @@ module.exports = {
 
 ```bash
 bubble-io-cli hello
-# → Hello from my plugin! 🎉
+# Output: Hello from my plugin
 ```
 
 ### Manage Plugins
@@ -1279,8 +1279,8 @@ bubble-io-cli plugin ext reload        # Force plugin re-discovery
 
 Check out the fully functional example plugins in the `examples/` directory:
 
-- **[`examples/plugin-s3-backup/`](examples/plugin-s3-backup/index.js)** — Auto-uploads every backup file to an S3 bucket via `afterBackup`
-- **[`examples/plugin-slack-notifier/`](examples/plugin-slack-notifier/index.js)** — Sends rich Slack notifications for backup, restore, schema diff, and export events
+- **[`examples/plugin-s3-backup/`](examples/plugin-s3-backup/index.js)**: Uploads backup files to an S3 bucket via `afterBackup`
+- **[`examples/plugin-slack-notifier/`](examples/plugin-slack-notifier/index.js)**: Sends Slack notifications for backup, restore, schema diff, and export events
 
 ### Write Your Own Plugin
 
@@ -1288,7 +1288,7 @@ Check out the fully functional example plugins in the `examples/` directory:
 
 ---
 
-## 🤝 Contributing
+## Contributing
 
 Contributions are warmly welcome! Please follow these steps:
 
@@ -1302,7 +1302,7 @@ Architecture guide: new commands go in `src/commands/`, new API logic in `src/se
 
 ---
 
-## 📝 License
+## License
 
 Distributed under the **MIT License**. See [LICENSE](LICENSE) for more information.
 
